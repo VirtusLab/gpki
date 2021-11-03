@@ -143,8 +143,13 @@ encrypt(){
 }
 
 decrypt(){
-	echo "Enter encrypted message, then press ctrl+d"
-	gpg --decrypt
+	file=$1
+	if [ -z "${file}" ]; then
+		echo "Enter encrypted message, then press ctrl+d"
+		gpg --decrypt
+	else
+		gpg --decrypt "${file}"
+	fi
 }
 
 _repo_refresh_file(){
