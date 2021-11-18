@@ -1,17 +1,28 @@
 #!/usr/local/bin/python3
+import gnupg
 import logging
+import os
+import shutil
 import subprocess
 import tempfile
-from typing import NewType
-from datetime import datetime
-from iterfzf import iterfzf
-from getpass import getpass
-from pathlib import Path
+
 from collections import namedtuple
-import shutil
+from datetime import datetime
+from getpass import getpass
+from iterfzf import iterfzf
+from pathlib import Path
+from typing import NewType
+
+
 verbose=True
 
 ShellCommand = NewType("ShellCommand", str)
+
+
+Request = namedtuple('Request', ["branch", "title"])
+FileChange = namedtuple('FileChange', ["op", "path"])
+KeyChange = namedtuple('KeyChange', ["added", "removed"])
+Key = namedtuple('Key', ["name", "email", "description", "fingerprint", "created_on", "expires_on"])
 
 def shell(cwd, command: ShellCommand) -> str:
     logging.debug(command)
@@ -22,15 +33,13 @@ def shell(cwd, command: ShellCommand) -> str:
         raise EnvironmentError(f"The command [{command}]\nfailed with return code {proc.returncode}.\nstderr:\n{proc.stderr.decode('utf-8')}")
 
 
-import gnupg
-import os
+
 class GPG(object):
 	def __init__(self, gnupghome):
 		super(GPG, self).__init__()
 		self.gpg = gnupg.GPG(gnupghome = gnupghome, options=['--yes', '--pinentry-mode','loopback'], verbose = verbose)
 		self.gpg.encoding = 'utf-8'
 		
-
 	def generate_key(self, name, email, description):
 		# TODO handle null email and description
 		key_spec = f"""
@@ -45,25 +54,24 @@ class GPG(object):
 
 		return self.gpg.gen_key(key_spec).fingerprint.lower()
 
-	def export_public_key(self, name, file):
-		key = self.gpg.export_keys(name)
-		mkdir(file.parent)
-		with open(file, "w") as output:
-			output.write(key)
+	def export_public_key(self, name):
+		return self.gpg.export_keys(name)
 
 	def import_public_key(self, armored):
 		print(f"Importing {armored}")
 		return self.gpg.import_keys(armored).results
 
 	def private_keys_list(self):
-		return self.gpg.list_keys(True)
+		keys = self.gpg.list_keys(True)
+		return map(self.parse_key, keys)
 
 	def private_key_fingerprint(self, name):
 		keys = self.gpg.list_keys(True, keys = name)
 		return keys[0]["fingerprint"].lower() if keys else None
 
-	def public_keys_list(self):
-		return self.gpg.list_keys(False)
+	def public_keys_list(self, names = None):
+		keys = self.gpg.list_keys(False, keys = names)
+		return map(self.parse_key, keys)
 
 	def public_key_name(self, fingerprint):
 		keys = self.gpg.list_keys(False, keys = fingerprint)
@@ -84,27 +92,35 @@ class GPG(object):
 		self.gpg.delete_keys(fingerprint, False)
 
 	def encrypt(self, recipient, signatory, source, target, passphrase):
-		# TODO fix signing: currently the message can be malformed if passphrase is invalid
 		if source is None:
 			data = []
+			print("Write message, then press enter and ctrl+d")
 			for line in sys.stdin:
 				data.append(line)
-			e = self.gpg.encrypt("".join(data), recipient, sign = signatory, output = target, passphrase = passphrase)
-			if target is None: print(e)
+			result = self.gpg.encrypt("".join(data), recipient, sign = signatory, output = target, passphrase = passphrase)
 		else:
 			with open(source, "rb") as data:
-				e = self.gpg.encrypt_file(data, recipient, sign = signatory, output = target, passphrase = passphrase)
-				if target is None: print(e)
+				result = self.gpg.encrypt_file(data, recipient, sign = signatory, output = target, passphrase = passphrase)
+		
+		if not result.ok:
+			print(f"Could not encrypt: {result.status}. Was passphrase correct?")
+			return
+		if target is None: print(result)
 		
 	def decrypt(self, source, target):
 		if source is None:
 			data = []
+			print("Paste message, then press enter and ctrl+d")
 			for line in sys.stdin:
 				data.append(line)
-			e = self.gpg.decrypt("".join(data))
-			print(f">>{e}")
+			result = self.gpg.decrypt("".join(data), output = target)
 		else:
-			pass
+			with open(source, "rb") as data:
+				result = self.gpg.decrypt_file(data, output = target)
+		if not result.ok:
+			print(f"Could not decrypt: {result.status}. Was passphrase correct?")
+			return
+		if target is None: print(result)
 
 	def scan(self, file):
 		keys = self.gpg.scan_keys(file)
@@ -116,24 +132,12 @@ class GPG(object):
 		email = uid[1][1:-1]
 		description = uid[2][1:-1]
 		fingerprint = raw_key["fingerprint"].lower()
-		created_on = key_parse_date(raw_key, "date")
-		expires_on = key_parse_date(raw_key, "expires")
+		created_on = self.key_parse_date(raw_key, "date")
+		expires_on = self.key_parse_date(raw_key, "expires")
 		return Key(name, email, description, fingerprint, created_on, expires_on)
 
-## parses the weird structure of gpg name
-# TODO could use some named struct
-def owner_name(key): 
-	raw = key["uids"][0].split()
-	name = raw[0]
-	email = raw[1][1:-1]
-	created_on = key_parse_date(key, "date")
-	expires_on = key_parse_date(key, "expires")
-	fingerprint = key["fingerprint"].lower()
-	description = raw[2][1:-1]
-	return (fingerprint, created_on, expires_on, name, email, description)
-
-def key_parse_date(key, field):
-	return datetime.fromtimestamp(int(key[field])).strftime("%Y-%m-%d")
+	def __key_parse_date(self, key, field):
+		return datetime.fromtimestamp(int(key[field])).strftime("%Y-%m-%d")
 
 class KeyChangeListener(object):
 	def __init__(self, gpg):
@@ -212,7 +216,7 @@ class Git(object):
 	def file_diff(self, branch):
 		raw 	 = shell(self.home, f'git diff --name-status HEAD.."{branch}" | sort').splitlines()
 		strip    = lambda line: line.split("\t")
-		to_tuple = lambda segments: Change(segments[0], segments[1])
+		to_tuple = lambda segments: FileChange(segments[0], segments[1])
 		return map(to_tuple, map(strip, raw))
 
 	def open_worktree(self, dir, branch):
@@ -235,8 +239,6 @@ class Git(object):
 	def path_to(self, path):
 		return Path(f"{self.home}/{path}")
 
-Request = namedtuple('Request', ["branch", "title"])
-Change = namedtuple('Change', ["op", "path"])
 
 def mkdir(name, mode = None):
 	if mode is None: 
@@ -266,45 +268,44 @@ class GPKI(object):
 			response = input(f"Replace existing identity of {existing_key}? [yN] ")
 			if response.lower() != "y" : return
 			passphrase = getpass(f"Specify passphrase for the existing key of [{name}]: ")
-			self.remove_private_key(existing_key, passphrase)
+			self.__gpg.remove_private_key(existing_key, passphrase)
 			# TODO what with public key? I think we should keep it until revoked / expired
 			#  maybe asking if it should be revoked also?
 
 		fingerprint = self.__gpg.generate_key(name, email, description)
 		if fingerprint is None: return
 		
-		mkdir(self.__git.identity_dir) # FIXME restructure code, because it is BAD now
+		key = self.__gpg.export_public_key(name)
 		file = Path(f"{self.__git.identity_dir}/{name}/${fingerprint}")
-		
-		self.__gpg.export_public_key(name, file)
+		self.__export_key(key, Path(file))
 		# TODO is it a good branch name? It allows multiple choices for someone to choose from
 		#   but also allows for semi-automated verification, approval and rejection
-		self.__git.push(f"{name}/{fingerprint}", f"Publish key {name}/${fingerprint}")
+		self.__git.push(f"{name}/{fingerprint}", f"Publish key {name}/{fingerprint}")
+		print(key)
 		# TODO maybe find a way to revert changes if PR gets rejected ?
 
 	def list_signatories(self):
 		print("fingerprint                              created-on expires-on\tidentity\temail\tdescription")
 		for key in self.__gpg.private_keys_list():
-			name = owner_name(key)
 			# TODO no idea how to align those nicely
-			print(f"{name[0]} {name[1]} {name[2]}\t{name[3]}\t{name[4]}\t{name[5]}")
+			print(f"{key}")
 
 	def list_recipients(self):
 		print("fingerprint                              created-on expires-on\tidentity\temail\tdescription")
 		for key in self.__gpg.public_keys_list():
-			name = owner_name(key)
 			# TODO no idea how to align those nicely
-			print(f"{name[0]} {name[1]} {name[2]}\t{name[3]}\t{name[4]}\t{name[5]}")
+			print(f"{key}")
+
 	def encrypt(self, source, target):
-		f = lambda key: " ".join(owner_name(key))
+		f = lambda key: f"{key.fingerprint} {key.created_on} {key.expires_on} {key.name} {key.email} {key.description}"
 		available_recipients = map(f, self.__gpg.public_keys_list())
 		selection = iterfzf(available_recipients, prompt = "Select recipient: ")
 		if selection is None: return
-		recipient = selection.split()[4]
+		recipient = selection.split()[0]
 		
 		available_signatories = map(f, self.__gpg.private_keys_list())
 		selection = iterfzf(available_signatories, prompt = "Select signatory or press ctrl+d to not sign ")
-		signatory = None if selection is None else selection.split()[4]
+		signatory = None if selection is None else selection.split()[0]
 
 		passphrase = getpass(f"Specify passphrase for [{selection[0]}]: ")
 
@@ -328,14 +329,28 @@ class GPKI(object):
 			for fingerprint in self.__import_key(file):
 				name = self.__gpg.public_key_name(fingerprint)
 				file = f"{self.__git.identity_dir}/{name}/{fingerprint}"
-				self.__gpg.export_public_key(fingerprint, Path(file))
+				key = self.__gpg.export_public_key(fingerprint)
+				__export_key(key, Path(file))
 				imported = True
 
 		if not imported: return
 		branch = input("Specify branch name: ").replace(" ", "_")
 		message = input("Specify commit title: ")
 		self.__git.push(branch, message)
-			
+	
+	def export_keys(self, names):
+		for name in names:
+			key = self.__gpg.export_public_key(name)
+			if key == "":
+				print(f"{name}: Failed\n")
+			else:
+				print(f"{name}:\n{key}\n")
+
+	def __export_key(self, key, path):
+		mkdir(path.parent)
+		with open(path, "w") as file:
+			file.write(key)
+
 	def __import_key(self, path):
 		keys = self.__gpg.scan(path)
 		print(f"File {path} contains:")
@@ -372,17 +387,24 @@ class GPKI(object):
 		changes  = self.__git.file_diff(request.branch)
 		reviewed = self.__git.open_worktree(self.__review_dir, request.branch)
 		try:
-			for change in changes:
-				print(change)
+			def map_change(change):
 				if change.op == 'A':
 					path = reviewed.path_to(change.path)
-					keys = self.__gpg.scan(path)
-					for key in keys:
-						print(f"Add {key.fingerprint} for {key.name} valid between {key.created_on} and {key.expires_on}")
+					return KeyChange(added = list(self.__gpg.scan(path)), removed = [])
+				if change.op == 'R':
+					path = __git.path_to(change.path)
+					return KeyChange(added = [], removed = list(self.__gpg.scan(path)))
+				if change.op == 'M':
+					removed = __git.path_to(change.path)
+					added = reviewed.path_to(change.path)
+					return KeyChange(added, removed)
+				# TODO also compare file name with its fingerprint
+			for x in map(map_change, changes):
+				print(x)
+			# TODO decide: accept / review (also confirm)
 		finally:
 			self.__git.close_worktree(request.branch)
-		
-Key = namedtuple('Key', ["name", "email", "description", "fingerprint", "created_on", "expires_on"])
+	
 
 def cmd_identity_generate(gpki, args):
 	name = args[0] if args else input("Specify name (required): ")
@@ -429,10 +451,10 @@ def read_multiline_string(prompt = None):
 routes = {
 	"decrypt" 	: lambda gpki, args: gpki.decrypt(None, None),
 	"encrypt" 	: cmd_encrypt,
-	"generate"	: cmd_identity_generate,
 	"new"		: cmd_identity_generate,
 	"key" 	  	: {
 		"import": lambda gpki, files: gpki.import_keys(files),
+		"export": lambda gpki, names: gpki.export_keys(names)
 	},
 	"recipient"	: {
 		"list"  : lambda gpki, args: gpki.list_recipients()
