@@ -4,7 +4,8 @@ import sys
 
 from datetime import datetime
 
-from custom_types import Key
+
+from github_pki.custom_types import Key
 
 
 verbose = True
