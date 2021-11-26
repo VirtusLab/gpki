@@ -1,151 +1,19 @@
 #!/usr/local/bin/python3
-import gnupg
-import logging
-import os
-import subprocess
 import sys
 import tempfile
 
-from collections import namedtuple
-from datetime import datetime
 from getpass import getpass
 from iterfzf import iterfzf
 from pathlib import Path
-from typing import NewType
+
+from constants import KeyChange
+from git_wrapper import Git
+from gpg_wrapper import GnuPGHandler
+from utils import mkdir, read_multiline_string
 
 
-verbose = True
-
-ShellCommand = NewType("ShellCommand", str)
-
-Request = namedtuple('Request', ["branch", "title"])
-FileChange = namedtuple('FileChange', ["op", "path"])
-KeyChange = namedtuple('KeyChange', ["added", "removed"])
-Key = namedtuple('Key', ["name", "email", "description", "fingerprint", "created_on", "expires_on"])
-
-
-def shell(cwd, command: ShellCommand) -> str:
-    logging.debug(command)
-    proc = subprocess.run(command, cwd=cwd, shell=True, capture_output=True)
-    if proc.returncode == 0:
-        return proc.stdout.decode("utf-8")
-    else:
-        raise EnvironmentError(
-            f"The command [{command}]\nfailed with return code {proc.returncode}.\n"
-            f"stderr:\n{proc.stderr.decode('utf-8')}")
-
-
-class GPG(object):
-    def __init__(self, gnupghome):
-        super(GPG, self).__init__()
-        self.gpg = gnupg.GPG(gnupghome=gnupghome, options=['--yes', '--pinentry-mode', 'loopback'], verbose=verbose)
-        self.gpg.encoding = 'utf-8'
-
-    def generate_key(self, name, email, description):
-        # TODO handle null email and description
-        key_spec = f"""
-                   Key-Type:	RSA
-                   Key-Length: 	3072
-                   Name-Real: 	{name}
-                   Name-Email: 	{email}
-                   Name-Comment:{description}
-                   Expire-Date:	6m
-                   Passphrase: 	{getpass("New key passphrase: ")}
-                    """
-
-        return self.gpg.gen_key(key_spec).fingerprint.lower()
-
-    def export_public_key(self, name):
-        return self.gpg.export_keys(name)
-
-    def import_public_key(self, armored):
-        print(f"Importing {armored}")
-        return self.gpg.import_keys(armored).results
-
-    def private_keys_list(self):
-        keys = self.gpg.list_keys(True)
-        return map(self.parse_key, keys)
-
-    def private_key_fingerprint(self, name):
-        keys = self.gpg.list_keys(True, keys=name)
-        return keys[0]["fingerprint"].lower() if keys else None
-
-    def public_keys_list(self, names=None):
-        keys = self.gpg.list_keys(False, keys=names)
-        return map(self.parse_key, keys)
-
-    def public_key_name(self, fingerprint):
-        keys = self.gpg.list_keys(False, keys=fingerprint)
-        return keys[0]["uids"][0] if keys else None
-
-    def public_key_fingerprint(self, name):
-        keys = self.gpg.list_keys(False, keys=name)
-        return keys[0]["fingerprint"].lower() if keys else None
-
-    def file_key_fingerprint(self, path):
-        keys = self.gpg.scan_keys(keys=path)
-        return keys[0]["fingerprint"] if keys else None
-
-    def remove_private_key(self, fingerprint, passphrase):
-        self.gpg.delete_keys(fingerprint, True, passphrase=passphrase)
-
-    def remove_public_key(self, fingerprint):
-        self.gpg.delete_keys(fingerprint, False)
-
-    def encrypt(self, recipient, signatory, source, target, passphrase):
-        if source is None:
-            data = []
-            print("Write message, then press enter and ctrl+d")
-            for line in sys.stdin:
-                data.append(line)
-            result = self.gpg.encrypt("".join(data), recipient, sign=signatory, output=target, passphrase=passphrase)
-        else:
-            with open(source, "rb") as data:
-                result = self.gpg.encrypt_file(data, recipient, sign=signatory, output=target, passphrase=passphrase)
-
-        if not result.ok:
-            print(f"Could not encrypt: {result.status}. Was passphrase correct?")
-            return
-        if target is None:
-            print(result)
-
-    def decrypt(self, source, target):
-        if source is None:
-            data = []
-            print("Paste message, then press enter and ctrl+d")
-            for line in sys.stdin:
-                data.append(line)
-            result = self.gpg.decrypt("".join(data), output=target)
-        else:
-            with open(source, "rb") as data:
-                result = self.gpg.decrypt_file(data, output=target)
-        if not result.ok:
-            print(f"Could not decrypt: {result.status}. Was passphrase correct?")
-            return
-        if target is None:
-            print(result)
-
-    def scan(self, file):
-        keys = self.gpg.scan_keys(file)
-        return map(self.parse_key, keys)
-
-    def parse_key(self, raw_key):
-        uid = raw_key["uids"][0]
-        name = uid[0]
-        email = uid[1][1:-1]
-        description = uid[2][1:-1]
-        fingerprint = raw_key["fingerprint"].lower()
-        created_on = self.__key_parse_date(raw_key, "date")
-        expires_on = self.__key_parse_date(raw_key, "expires")
-        return Key(name, email, description, fingerprint, created_on, expires_on)
-
-    def __key_parse_date(self, key, field):
-        return datetime.fromtimestamp(int(key[field])).strftime("%Y-%m-%d")
-
-
-class KeyChangeListener(object):
+class KeyChangeListener:
     def __init__(self, gpg):
-        super(KeyChangeListener, self).__init__()
         self.__gpg = gpg
 
     def key_added(self, path):
@@ -162,104 +30,12 @@ class KeyChangeListener(object):
         self.__gpg.remove_public_key(fingerprint)
 
 
-class Git(object):
+class GPKI:
     def __init__(self, home):
-        super(Git, self).__init__()
-
-        self.home = home
-        self.identity_dir = f"{home}/identities"
-        self.key_dir = f"{home}/keys"
-
-    def update(self, listener) -> list:
-        from pathlib import Path
-        if Path(f"{self.home}/.git").is_dir():
-            # TODO reenable
-            # branch=shell(self.home, "git rev-parse --abbrev-ref HEAD")
-            # old_hash=shell(self.home, "git rev-parse HEAD")
-            # shell(self.home, f"git pull origin {branch}")
-            # new_hash=shell(self.home, "git rev-parse HEAD")
-
-            # if old_hash != new_hash:
-            # 	raw_output = shell(self.home, f'git diff --name-status "{old_hash}".."{new_hash}" | sort')
-            # 	for line in filter(None, raw_output.split("\n")):
-            # 		op, path = line.split('\t')
-            # 		if 	 op == 'A': listener.key_added(path)
-            # 		elif op == 'M': listener.key_updated(path)
-            # 		elif op == 'R': listener.key_removed(path)
-            pass
-        else:
-            from os import listdir
-
-            repo = input("Specify git repository: ")
-            shell(self.home, f"git clone {repo} {self.home}")
-            mkdir(self.identity_dir)
-            mkdir(self.key_dir)
-
-            print(self.identity_dir)
-            for path in listdir(self.identity_dir):
-                listener.key_added(path)
-
-            for path in listdir(self.key_dir):
-                listener.key_added(path)
-
-    def push(self, branch, message):
-        # TODO recover on failure!
-        shell(self.home, f"git checkout -b {branch}")
-        shell(self.home, "git add -A")
-        shell(self.home, f"git commit -m '{message}'")
-        shell(self.home, f"git push origin {branch}")
-        shell(self.home, "git checkout -")
-        shell(self.home, f"git branch -D {branch}")
-
-    def list_unmerged_branches(self):
-        branch = self.__current_branch()
-        raw = shell(self.home, f"git branch -a --no-merged origin/{branch}").splitlines()
-        strip = lambda line: line.strip()
-        to_tuple = lambda branch: Request(branch, self.__commit_title(branch))
-        return map(to_tuple, map(strip, raw))
-
-    def file_diff(self, branch):
-        raw = shell(self.home, f'git diff --name-status HEAD.."{branch}" | sort').splitlines()
-        strip = lambda line: line.split("\t")
-        to_tuple = lambda segments: FileChange(segments[0], segments[1])
-        return map(to_tuple, map(strip, raw))
-
-    def open_worktree(self, directory, branch):
-        path = Path(f"{directory}/{branch}")
-        shell(self.home, f"git worktree add {path} {branch}")
-        return Git(path)
-
-    def close_worktree(self, branch):
-        shell(self.home, f"git worktree remove {branch}")
-
-    def __current_branch(self):
-        return shell(self.home, "git rev-parse --abbrev-ref HEAD")
-
-    def __commit_title(self, ref):
-        return shell(self.home, f"git log -1 --format=%s {ref}").strip()
-
-    def __update_repository(self):
-        pass
-
-    def path_to(self, path):
-        return Path(f"{self.home}/{path}")
-
-
-def mkdir(name, mode=None):
-    if not mode:
-        os.makedirs(name, exist_ok=True)
-    else:
-        os.makedirs(name, mode, exist_ok=True)
-    return name
-
-
-class GPKI(object):
-    def __init__(self, home):
-        super(GPKI, self).__init__()
         self.__file_gpghome = mkdir(f"{home}/vault/private", 0o700)
         self.__file_repository = mkdir(f"{home}/vault/public")
         self.__review_dir = mkdir(f"{home}/reviews")
-        self.__gpg = GPG(self.__file_gpghome)
+        self.__gpg = GnuPGHandler(self.__file_gpghome)
         self.__git = Git(self.__file_repository)
 
         listener = KeyChangeListener(self.__gpg)
@@ -313,7 +89,7 @@ class GPKI(object):
 
         available_signatories = map(f, self.__gpg.private_keys_list())
         selection = iterfzf(available_signatories, prompt="Select signatory or press ctrl+d to not sign ")
-        signatory = None if selection is None else selection.split()[0]
+        signatory = None if selection else selection.split()[0]
 
         passphrase = getpass(f"Specify passphrase for [{selection[0]}]: ")
 
@@ -349,12 +125,13 @@ class GPKI(object):
     def export_keys(self, names):
         for name in names:
             key = self.__gpg.export_public_key(name)
-            if key == "":
+            if not key:
                 print(f"{name}: Failed\n")
             else:
                 print(f"{name}:\n{key}\n")
 
-    def __export_key(self, key, path):
+    @staticmethod
+    def __export_key(key, path):
         mkdir(path.parent)
         with open(path, "w") as file:
             file.write(key)
@@ -445,21 +222,12 @@ def cmd_encrypt(gpki, args):
 
 def dispatch(gpki, args, routes):
     route = routes[args[0]]
-    if type(route) is dict:
+    if isinstance(route, dict):
         dispatch(gpki, args[1:], route)
     elif callable(route):
         route(gpki, args[1:])
     else:
         raise Exception(f"Unsupported route: {route}")
-
-
-def read_multiline_string(prompt=None):
-    if prompt:
-        print(prompt)
-    lines = []
-    for line in sys.stdin:
-        lines.append(line)
-    return "".join(lines)
 
 
 routes = {
