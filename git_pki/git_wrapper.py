@@ -2,8 +2,8 @@ import os
 from pathlib import Path
 from typing import List
 
-from github_pki.custom_types import FileChange, Request
-from github_pki.utils import mkdir, shell
+from git_pki.custom_types import FileChange, Request
+from git_pki.utils import mkdir, shell
 
 
 class Git:

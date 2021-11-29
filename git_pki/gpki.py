@@ -6,10 +6,10 @@ from getpass import getpass
 from iterfzf import iterfzf
 from pathlib import Path
 
-from github_pki.custom_types import KeyChange
-from github_pki.git_wrapper import Git
-from github_pki.gpg_wrapper import GnuPGHandler
-from github_pki.utils import mkdir, read_multiline_string
+from git_pki.custom_types import KeyChange
+from git_pki.git_wrapper import Git
+from git_pki.gpg_wrapper import GnuPGHandler
+from git_pki.utils import mkdir, read_multiline_string
 
 
 class KeyChangeListener:

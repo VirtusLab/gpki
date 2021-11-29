@@ -5,7 +5,7 @@ import sys
 from datetime import datetime
 
 
-from github_pki.custom_types import Key
+from git_pki.custom_types import Key
 
 
 verbose = True
