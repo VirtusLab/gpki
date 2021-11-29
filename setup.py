@@ -9,7 +9,7 @@ with open(path.join(this_directory, 'README.md')) as f:
     long_description = f.read()
 
 setup(
-    name='gpki',
+    name='github_pki',
     version=__version__,
     description='Github Public Key Infrastructure',
     long_description=long_description,
