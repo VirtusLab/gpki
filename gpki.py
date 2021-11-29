@@ -45,7 +45,7 @@ class GPKI:
         # TODO verify that repository is in clean state?
         existing_key = self.__gpg.private_key_fingerprint(name)
         if existing_key is not None:
-            # If key exists, confirm removal of the private varsion and move public one to the archive
+            # If key exists, confirm removal of the private version and move public one to the archive
             response = input(f"Replace existing identity of {existing_key}? [yN] ")
             if response.lower() != "y":
                 return
@@ -162,7 +162,7 @@ class GPKI:
         return map(lambda x: x["fingerprint"].lower(), imported)
 
     def review_requests(self):
-        unmerged = list(self.__git.list_unmerged_branches())
+        unmerged = list(self.__git.list_unmerged_branches(self.__git.current_branch()))
         if not unmerged:
             return
         for i, request in enumerate(unmerged):
