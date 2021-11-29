@@ -1,5 +1,8 @@
 from collections import namedtuple
+from typing import NewType
 
+
+ShellCommand = NewType("ShellCommand", str)
 
 Request = namedtuple('Request', ["branch", "title"])
 FileChange = namedtuple('FileChange', ["op", "path"])

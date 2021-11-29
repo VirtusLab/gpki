@@ -3,10 +3,7 @@ import os
 import subprocess
 import sys
 
-from typing import NewType
-
-
-ShellCommand = NewType("ShellCommand", str)
+from custom_types import ShellCommand
 
 
 def read_multiline_string(prompt=None):

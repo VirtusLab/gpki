@@ -6,7 +6,7 @@ from getpass import getpass
 from iterfzf import iterfzf
 from pathlib import Path
 
-from constants import KeyChange
+from custom_types import KeyChange
 from git_wrapper import Git
 from gpg_wrapper import GnuPGHandler
 from utils import mkdir, read_multiline_string

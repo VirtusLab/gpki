@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import List
 
-from constants import FileChange, Request
+from custom_types import FileChange, Request
 from utils import mkdir, shell
 
 
@@ -43,7 +43,7 @@ class Git:
                 listener.key_added(path)
 
     def push(self, branch, message):
-        # TODO recover on failure!
+        # TODO https://github.com/VirtusLab/gpki/issues/13 recover on failure
         shell(self.root_dir, f"git checkout -b {branch}")
         shell(self.root_dir, "git add -A")
         shell(self.root_dir, f"git commit -m '{message}'")

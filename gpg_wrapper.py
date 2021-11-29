@@ -4,7 +4,7 @@ import sys
 
 from datetime import datetime
 
-from constants import Key
+from custom_types import Key
 
 
 verbose = True
