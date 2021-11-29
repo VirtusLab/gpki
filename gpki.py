@@ -162,7 +162,7 @@ class GPKI:
         return map(lambda x: x["fingerprint"].lower(), imported)
 
     def review_requests(self):
-        unmerged = list(self.__git.list_unmerged_branches(self.__git.current_branch()))
+        unmerged = list(self.__git.list_branches_unmerged_to_remote_counterpart_of(self.__git.current_branch()))
         if not unmerged:
             return
         for i, request in enumerate(unmerged):

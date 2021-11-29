@@ -7,13 +7,13 @@ from utils import mkdir, shell
 
 
 class Git:
-    def __init__(self, git_dir):
-        self.git_dir = git_dir
-        self.identity_dir = f"{git_dir}/identities"
-        self.key_dir = f"{git_dir}/keys"
+    def __init__(self, root_dir):
+        self.root_dir = root_dir
+        self.identity_dir = f"{root_dir}/identities"
+        self.key_dir = f"{root_dir}/keys"
 
     def update(self, listener) -> List:
-        if Path(f"{self.git_dir}/.git").is_dir():
+        if Path(f"{self.root_dir}/.git").is_dir():
             # TODO reenable
             # branch=shell(self.home, "git rev-parse --abbrev-ref HEAD")
             # old_hash=shell(self.home, "git rev-parse HEAD")
@@ -31,7 +31,7 @@ class Git:
         else:
 
             repo = input("Specify git repository: ")
-            shell(self.git_dir, f"git clone {repo} {self.git_dir}")
+            shell(self.root_dir, f"git clone {repo} {self.root_dir}")
             mkdir(self.identity_dir)
             mkdir(self.key_dir)
 
@@ -44,41 +44,41 @@ class Git:
 
     def push(self, branch, message):
         # TODO recover on failure!
-        shell(self.git_dir, f"git checkout -b {branch}")
-        shell(self.git_dir, "git add -A")
-        shell(self.git_dir, f"git commit -m '{message}'")
-        shell(self.git_dir, f"git push origin {branch}")
-        shell(self.git_dir, "git checkout -")
-        shell(self.git_dir, f"git branch -D {branch}")
+        shell(self.root_dir, f"git checkout -b {branch}")
+        shell(self.root_dir, "git add -A")
+        shell(self.root_dir, f"git commit -m '{message}'")
+        shell(self.root_dir, f"git push origin {branch}")
+        shell(self.root_dir, "git checkout -")
+        shell(self.root_dir, f"git branch -D {branch}")
 
-    def list_unmerged_branches(self, branch):
-        raw = shell(self.git_dir, f"git branch -a --no-merged origin/{branch}").splitlines()
+    def list_branches_unmerged_to_remote_counterpart_of(self, branch):
+        raw = shell(self.root_dir, f"git branch -a --no-merged origin/{branch}").splitlines()
         strip = lambda line: line.strip()
         to_tuple = lambda branch: Request(branch, self.__commit_title(branch))
         return map(to_tuple, map(strip, raw))
 
     def file_diff(self, branch):
-        raw = shell(self.git_dir, f'git diff --name-status HEAD.."{branch}" | sort').splitlines()
+        raw = shell(self.root_dir, f'git diff --name-status HEAD.."{branch}" | sort').splitlines()
         strip = lambda line: line.split("\t")
         to_tuple = lambda segments: FileChange(segments[0], segments[1])
         return map(to_tuple, map(strip, raw))
 
     def open_worktree(self, directory, branch):
         path = Path(f"{directory}/{branch}")
-        shell(self.git_dir, f"git worktree add {path} {branch}")
+        shell(self.root_dir, f"git worktree add {path} {branch}")
         return Git(path)
 
     def close_worktree(self, branch):
-        shell(self.git_dir, f"git worktree remove {branch}")
+        shell(self.root_dir, f"git worktree remove {branch}")
 
     def current_branch(self):
-        return shell(self.git_dir, "git rev-parse --abbrev-ref HEAD")
+        return shell(self.root_dir, "git rev-parse --abbrev-ref HEAD")
 
     def __commit_title(self, ref):
-        return shell(self.git_dir, f"git log -1 --format=%s {ref}").strip()
+        return shell(self.root_dir, f"git log -1 --format=%s {ref}").strip()
 
     def __update_repository(self):
         pass
 
     def path_to(self, path):
-        return Path(f"{self.git_dir}/{path}")
+        return Path(f"{self.root_dir}/{path}")
