@@ -15,7 +15,7 @@ setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     packages=['git_pki'],
-    scripts=['gpki'],
+    scripts=['git-pki'],
     python_requires='>=3.6',
     options={'bdist_wheel': {'universal': '1'}},
 )
