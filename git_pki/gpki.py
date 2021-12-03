@@ -6,10 +6,10 @@ from getpass import getpass
 from iterfzf import iterfzf
 from pathlib import Path
 
-from custom_types import KeyChange
-from git_wrapper import Git
-from gpg_wrapper import GnuPGHandler
-from utils import mkdir, read_multiline_string
+from git_pki.custom_types import KeyChange
+from git_pki.git_wrapper import Git
+from git_pki.gpg_wrapper import GnuPGHandler
+from git_pki.utils import mkdir, read_multiline_string
 
 
 class KeyChangeListener:
@@ -250,10 +250,12 @@ routes = {
 }
 
 
-def main(args):
+def main():
+    args = sys.argv[1:]
     gpki = GPKI("/tmp/foobarbaz")
     dispatch(gpki, args, routes)
 
 
-args = sys.argv[1:]
-main(args)
+if __name__ == "__main__":
+    main()
+

@@ -3,7 +3,7 @@ import os
 import subprocess
 import sys
 
-from custom_types import ShellCommand
+from git_pki.custom_types import ShellCommand
 
 
 def read_multiline_string(prompt=None):

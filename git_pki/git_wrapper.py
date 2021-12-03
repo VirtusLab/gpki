@@ -2,8 +2,8 @@ import os
 from pathlib import Path
 from typing import List
 
-from custom_types import FileChange, Request
-from utils import mkdir, shell
+from git_pki.custom_types import FileChange, Request
+from git_pki.utils import mkdir, shell
 
 
 class Git:
@@ -82,3 +82,4 @@ class Git:
 
     def path_to(self, path):
         return Path(f"{self.root_dir}/{path}")
+

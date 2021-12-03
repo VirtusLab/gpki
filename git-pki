@@ -1,0 +1,4 @@
+#!/usr/bin/env python3
+from git_pki.gpki import main
+
+main()
