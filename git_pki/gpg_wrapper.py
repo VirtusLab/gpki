@@ -1,9 +1,10 @@
-from getpass import getpass
+
 import gnupg
+import os
 import sys
 
+from getpass import getpass
 from datetime import datetime
-
 
 from git_pki.custom_types import Key
 
@@ -84,21 +85,24 @@ class GnuPGHandler:
         if target is None:
             print(result)
 
-    def decrypt(self, source, target):
-        if source is None:
-            data = []
-            print("Paste message, then press enter and ctrl+d")
-            for line in sys.stdin:
-                data.append(line)
-            result = self.gpg.decrypt("".join(data), output=target)
+    def decrypt(self, source, target, passphrase):
+        if not os.path.isfile(source):
+            result = self.gpg.decrypt("".join(source), output=target, passphrase=passphrase)
         else:
             with open(source, "rb") as data:
-                result = self.gpg.decrypt_file(data, output=target)
+                result = self.gpg.decrypt_file(data, output=target, passphrase=passphrase)
         if not result.ok:
             print(f"Could not decrypt: {result.status}. Was passphrase correct?")
             return
         if target is None:
             print(result)
+
+    def get_recipient(self, data_or_stream):
+        if os.path.isfile(data_or_stream):
+            recipient = self.gpg.get_recipients_file(data_or_stream)
+        else:
+            recipient = self.gpg.get_recipients(data_or_stream)
+        return recipient
 
     def scan(self, file):
         keys = self.gpg.scan_keys(file)

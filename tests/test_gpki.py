@@ -1,15 +1,16 @@
 import os
-import subprocess
 import random
-import string
-import sys
 import re
+import string
+import subprocess
+import sys
 
-from io import StringIO
 from contextlib import redirect_stdout
-from git_pki.gpki import GPKI
+from io import StringIO
 from unittest import TestCase
 from unittest.mock import patch
+
+from git_pki.gpki import GPKI
 from git_pki.utils import shell
 
 
@@ -17,13 +18,8 @@ def mock_iterfzf(base_container, prompt=""):
     return list(base_container)[0]
 
 
-def overwrite_stdin(*args, **kwargs):
-    def wrapper(func):
-        original_stdin = sys.stdin
-        sys.stdin = kwargs['message']
-        func()
-        sys.stdin = original_stdin
-    return wrapper
+def mock_getpass(prompt):
+    return "strong_password"
 
 
 class GitRepositorySandbox:
@@ -95,19 +91,20 @@ class GitPKI_Tester(TestCase):
 
     def test_add_identity(self):
         temp_dir_name = GitPKI_Tester.get_temp_directory()
-        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
             gpki = GPKI(temp_dir_name)
         gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
         branches = shell(os.path.join(temp_dir_name, 'vault', 'public'), 'git branch -a')
-        self.assertIn('remotes/origin/tester', branches)
+        self.assertIn('remotes/origin/tester', branches)  # TODO https://github.com/VirtusLab/gpki/issues/36  rely on changes in Keys
 
-    @patch('iterfzf.iterfzf', mock_iterfzf)
+    @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
+    @patch('iterfzf.iterfzf', mock_iterfzf)  # in test we got only one identity per test, so we can easily get the first one and move on
     def test_encrypt_decrypt_message(self):
-        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
             gpki = GPKI(GitPKI_Tester.get_temp_directory())
         gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
 
-        original_stdin = sys.stdin
+        stdin_backup = sys.stdin
         sys.stdin = StringIO("Let's try to encrypt this message")
         with StringIO() as out:
             with redirect_stdout(out):
@@ -122,4 +119,7 @@ class GitPKI_Tester(TestCase):
                 gpki.decrypt(None, None)
             raw_output = out.getvalue()
 
-        sys.stdin = original_stdin
+        sys.stdin = stdin_backup
+        relevant_message = raw_output.split('\n')[-2]
+        self.assertIn("Let's try to encrypt this message", raw_output)
+        self.assertEqual("Let's try to encrypt this message", relevant_message)

@@ -49,7 +49,6 @@ class Git:
         shell(self.root_dir, f"git commit -m '{message}'")
         shell(self.root_dir, f"git push origin {branch}")
         shell(self.root_dir, "git checkout -")
-        shell(self.root_dir, f"git branch -D {branch}")
 
     def list_branches_unmerged_to_remote_counterpart_of(self, branch):
         raw = shell(self.root_dir, f"git branch -a --no-merged origin/{branch}").splitlines()
@@ -82,4 +81,3 @@ class Git:
 
     def path_to(self, path):
         return Path(f"{self.root_dir}/{path}")
-

@@ -1,8 +1,9 @@
 #!/usr/local/bin/python3
+import os
 import sys
 import tempfile
 
-from getpass import getpass
+import getpass
 import iterfzf
 from pathlib import Path
 
@@ -54,7 +55,7 @@ class GPKI:
             response = input(f"Replace existing identity of {existing_key}? [yN] ")
             if response.lower() != "y":
                 return
-            passphrase = getpass(f"Specify passphrase for the existing key of [{name}]: ")
+            passphrase = getpass.getpass(f"Specify passphrase for the existing key of [{name}]: ")
             self.__gpg.remove_private_key(existing_key, passphrase)
 <<<<<<< HEAD
            # TODO (#23): ask to set private/public key to expired state
@@ -101,12 +102,24 @@ class GPKI:
         selection = iterfzf.iterfzf(available_signatories, prompt="Select signatory or press ctrl+d to not sign ")
         signatory = None if selection else selection.split()[0]
 
-        passphrase = getpass(f"Specify passphrase for [{selection[0]}]: ")
+        passphrase = getpass.getpass(f"Specify passphrase for [{selection[0]}]: ")
 
         self.__gpg.encrypt(recipient, signatory, source, target, passphrase)
 
-    def decrypt(self, source, target):
-        self.__gpg.decrypt(source, target)
+    def decrypt(self, source, target, passphrase=None):
+        if not passphrase:
+            if source is not None and os.path.isfile(source):
+                with open(source, 'rb') as src_file:
+                    recipient = self.__gpg.get_recipient(src_file)
+            else:
+                data = []
+                print("Paste message, then press enter and ctrl+d")
+                for line in sys.stdin:
+                    data.append(line)
+                source = "".join(data)
+                recipient = self.__gpg.get_recipient(source)
+            passphrase = getpass.getpass(f"Specify passphrase for {recipient}: ")
+        self.__gpg.decrypt(source, target, passphrase)
 
     def import_keys(self, files):
         if not files:
@@ -242,7 +255,7 @@ def dispatch(gpki, args, routes):
 
 
 routes = {
-    "decrypt": lambda gpki, args: gpki.decrypt(None, None),
+    "decrypt": lambda gpki, args: gpki.decrypt(None, None),  # TODO https://github.com/VirtusLab/gpki/issues/35   Allow to decrypt from and to file
     "encrypt": cmd_encrypt,
     "new": cmd_identity_generate,
     "key": {
@@ -264,9 +277,8 @@ routes = {
 def main():
     args = sys.argv[1:]
     gpki = GPKI("/tmp/foobarbaz")
-    dispatch(gpki, ['new'], routes)
+    dispatch(gpki, args, routes)
 
 
 if __name__ == "__main__":
     main()
-
