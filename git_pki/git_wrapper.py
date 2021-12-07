@@ -14,7 +14,7 @@ class Git:
 
     def update(self, listener) -> List:
         if Path(f"{self.root_dir}/.git").is_dir():
-            # TODO reenable
+            # TODO https://github.com/VirtusLab/gpki/issues/21 reenable
             # branch=shell(self.home, "git rev-parse --abbrev-ref HEAD")
             # old_hash=shell(self.home, "git rev-parse HEAD")
             # shell(self.home, f"git pull origin {branch}")
