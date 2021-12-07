@@ -2,8 +2,8 @@
 import sys
 import tempfile
 
-from iterfzf import iterfzf
 from getpass import getpass
+import iterfzf
 from pathlib import Path
 
 from git_pki.custom_types import KeyChange
@@ -41,8 +41,13 @@ class GPKI:
         listener = KeyChangeListener(self.__gpg)
         self.__git.update(listener)
 
+<<<<<<< HEAD
     def generate_identity(self, name, email, description):
         # TODO (#22): verify that repository is in clean state? are we on master branch?
+=======
+    def generate_identity(self, name, email, description, passphrase=None):
+        # TODO verify that repository is in clean state?
+>>>>>>> 0120990... add test for creating identity, encrypt and deccrypt a message
         existing_key = self.__gpg.private_key_fingerprint(name)
         if existing_key is not None:
             # If key exists, confirm removal of the private version and move public one to the archive
@@ -51,9 +56,16 @@ class GPKI:
                 return
             passphrase = getpass(f"Specify passphrase for the existing key of [{name}]: ")
             self.__gpg.remove_private_key(existing_key, passphrase)
+<<<<<<< HEAD
            # TODO (#23): ask to set private/public key to expired state
            #  if so, publish updated public key
         fingerprint = self.__gpg.generate_key(name, email, description)
+=======
+            # TODO what with public key? I think we should keep it until revoked / expired
+            #  maybe asking if it should be revoked also?
+
+        fingerprint = self.__gpg.generate_key(name, email, description, passphrase=passphrase)
+>>>>>>> 0120990... add test for creating identity, encrypt and deccrypt a message
         if fingerprint is None:
             return
 
@@ -80,13 +92,13 @@ class GPKI:
     def encrypt(self, source, target):
         f = lambda key: f"{key.fingerprint} {key.created_on} {key.expires_on} {key.name} {key.email} {key.description}"
         available_recipients = map(f, self.__gpg.public_keys_list())
-        selection = iterfzf(available_recipients, prompt="Select recipient: ")
+        selection = iterfzf.iterfzf(available_recipients, prompt="Select recipient: ")
         if selection is None:
             return
         recipient = selection.split()[0]
 
         available_signatories = map(f, self.__gpg.private_keys_list())
-        selection = iterfzf(available_signatories, prompt="Select signatory or press ctrl+d to not sign ")
+        selection = iterfzf.iterfzf(available_signatories, prompt="Select signatory or press ctrl+d to not sign ")
         signatory = None if selection else selection.split()[0]
 
         passphrase = getpass(f"Specify passphrase for [{selection[0]}]: ")
@@ -252,7 +264,7 @@ routes = {
 def main():
     args = sys.argv[1:]
     gpki = GPKI("/tmp/foobarbaz")
-    dispatch(gpki, args, routes)
+    dispatch(gpki, ['new'], routes)
 
 
 if __name__ == "__main__":

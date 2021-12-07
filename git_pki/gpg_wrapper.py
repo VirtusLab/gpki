@@ -25,7 +25,7 @@ class GnuPGHandler:
                    Name-Email: 	{email}
                    Name-Comment:{description}
                    Expire-Date:	6m
-                   Passphrase: 	{getpass("New key passphrase: ")}
+                   Passphrase: 	{passphrase if passphrase else getpass("New key passphrase: ")}
                     """
 
         return self.gpg.gen_key(key_spec).fingerprint.lower()
