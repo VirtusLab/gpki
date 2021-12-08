@@ -2,8 +2,8 @@
 import sys
 import tempfile
 
-from getpass import getpass
 from iterfzf import iterfzf
+from getpass import getpass
 from pathlib import Path
 
 from git_pki.custom_types import KeyChange
@@ -42,7 +42,7 @@ class GPKI:
         self.__git.update(listener)
 
     def generate_identity(self, name, email, description):
-        # TODO https://github.com/VirtusLab/gpki/issues/22 verify that repository is in clean state? are we on master branch?
+        # TODO (#22): verify that repository is in clean state? are we on master branch?
         existing_key = self.__gpg.private_key_fingerprint(name)
         if existing_key is not None:
             # If key exists, confirm removal of the private version and move public one to the archive
@@ -51,7 +51,7 @@ class GPKI:
                 return
             passphrase = getpass(f"Specify passphrase for the existing key of [{name}]: ")
             self.__gpg.remove_private_key(existing_key, passphrase)
-           # TODO https://github.com/VirtusLab/gpki/issues/23 ask to set private/public key to expired state
+           # TODO (#23): ask to set private/public key to expired state
            #  if so, publish updated public key
         fingerprint = self.__gpg.generate_key(name, email, description)
         if fingerprint is None:
@@ -62,19 +62,19 @@ class GPKI:
         self.__export_key(key, Path(file))
         self.__git.push(f"{name}/{fingerprint}", f"Publish key {name}/{fingerprint}")
         print(key)
-        # TODO https://github.com/VirtusLab/gpki/issues/24 maybe find a way to revert changes if PR gets rejected ?
+        # TODO (#24): maybe find a way to revert changes if PR gets rejected ?
         #  fetch --prune, then check which branch is present locally and not on remote, then remove keys from selected branches
 
     def list_signatories(self):
         print("fingerprint                              created-on expires-on\tidentity\temail\tdescription")
         for key in self.__gpg.private_keys_list():
-            # TODO https://github.com/VirtusLab/gpki/issues/25 allign the text correctly
+            # TODO (#25): allign the text correctly
             print(f"{key}")
 
     def list_recipients(self):
         print("fingerprint                              created-on expires-on\tidentity\temail\tdescription")
         for key in self.__gpg.public_keys_list():
-            # TODO https://github.com/VirtusLab/gpki/issues/25 allign the text correctly
+            # TODO (#25): allign the text correctly
             print(f"{key}")
 
     def encrypt(self, source, target):
@@ -136,8 +136,8 @@ class GPKI:
 
     def __import_key(self, path):
         keys = self.__gpg.scan(path)
-        print(f"File {path} contains:")  # TODO https://github.com/VirtusLab/gpki/issues/26
-        for key in keys:                 #  when we fail to import any key from a file, we should remove all keys from this file
+        print(f"File {path} contains:")  # TODO (#26): when we fail to import any key from a file, we should remove all keys from this file
+        for key in keys:
             print(f"{key.fingerprint} key of {key.name} valid between {key.created_on} and {key.expires_on}")
         if input("is that OK? [yN] ").lower() != 'y':
             return []
@@ -153,10 +153,10 @@ class GPKI:
             reason = status["text"]
             if status["ok"] is None:
                 print(f"Failed to import {fingerprint} due to: {reason}")
-            else:  # TODO https://github.com/VirtusLab/gpki/issues/27 do not print out unchanged keys
+            else:  # TODO (#27): do not print out unchanged keys
                 print(f"Imported: {fingerprint}. {reason}")
 
-        # TODO https://github.com/VirtusLab/gpki/issues/28 do not return fingerprints of the unchanged keys
+        # TODO (#28): do not return fingerprints of the unchanged keys
         return map(lambda x: x["fingerprint"].lower(), imported)
 
     def review_requests(self):
@@ -167,12 +167,12 @@ class GPKI:
             print(f"{i}) {request.title}")
 
         selected = int(input(f"Select request to review (0-{len(unmerged)}): "))
-        request = unmerged[selected]  # TODO https://github.com/VirtusLab/gpki/issues/29 verify if key added in PR is valid, extract fingerprint from branch_name
+        request = unmerged[selected]  # TODO (#29): verify if key added in PR is valid, extract fingerprint from branch_name
 
         print("Requested changes:")
         changes = self.__git.file_diff(request.branch)
         reviewed = self.__git.open_worktree(self.__review_dir, request.branch)
-        try:   # TODO https://github.com/VirtusLab/gpki/issues/30 Check if Try still needed after imp.
+        try:   # TODO (#30): Check if Try still needed after imp.
             def map_change(change):
                 if change.op == 'A':
                     path = reviewed.path_to(change.path)
@@ -184,10 +184,10 @@ class GPKI:
                     removed = self.__git.path_to(change.path)
                     added = reviewed.path_to(change.path)
                     return KeyChange(added, removed)
-                # TODO https://github.com/VirtusLab/gpki/issues/31 also compare file name with its fingerprint (exctract to method)
+                # TODO (#31): also compare file name with its fingerprint (exctract to method)
             for x in map(map_change, changes):
                 print(x)
-            # TODO https://github.com/VirtusLab/gpki/issues/32  accept / reject (also confirm)
+            # TODO (#32):  accept / reject (also confirm)
             #  ask if accept/reject, accept => merge and push, reject => ask to remove branch
         finally:
             self.__git.close_worktree(request.branch)
@@ -215,7 +215,7 @@ def cmd_encrypt(gpki, args):
         if not source.is_file():
             raise Exception(f"Not a file: {source}")
         if target.is_file():
-            pass  # TODO https://github.com/VirtusLab/gpki/issues/33 ask to overwrite
+            pass  # TODO (#33): ask to overwrite
         gpki.encrypt(source, target)
 
 

@@ -17,7 +17,7 @@ class GnuPGHandler:
         self.gpg.encoding = 'utf-8'
 
     def generate_key(self, name, email, description):
-        # TODO https://github.com/VirtusLab/gpki/issues/12 handle null email and description
+        # TODO (#12): handle null email and description
         key_spec = f"""
                    Key-Type:	RSA
                    Key-Length: 	3072
