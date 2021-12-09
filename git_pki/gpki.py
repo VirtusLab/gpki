@@ -243,7 +243,7 @@ def dispatch(gpki, args, routes):
 
 
 routes = {
-    "decrypt": lambda gpki, args: gpki.decrypt(None, None),  # TODO https://github.com/VirtusLab/gpki/issues/35   Allow to decrypt from and to file
+    "decrypt": lambda gpki, args: gpki.decrypt(None, None),  # TODO (#35): Allow to decrypt from and to file
     "encrypt": cmd_encrypt,
     "new": cmd_identity_generate,
     "key": {
