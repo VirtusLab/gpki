@@ -68,13 +68,13 @@ class GPKI:
     def list_signatories(self):
         print("fingerprint                              created-on expires-on\tidentity\temail\tdescription")
         for key in self.__gpg.private_keys_list():
-            # TODO (#25): allign the text correctly
+            # TODO (#25): align the text correctly
             print(f"{key}")
 
     def list_recipients(self):
         print("fingerprint                              created-on expires-on\tidentity\temail\tdescription")
         for key in self.__gpg.public_keys_list():
-            # TODO (#25): allign the text correctly
+            # TODO (#25): align the text correctly
             print(f"{key}")
 
     def encrypt(self, source, target):
@@ -172,7 +172,7 @@ class GPKI:
         print("Requested changes:")
         changes = self.__git.file_diff(request.branch)
         reviewed = self.__git.open_worktree(self.__review_dir, request.branch)
-        try:   # TODO (#30): Check if Try still needed after imp.
+        try:   # TODO (#30): Check if Try still needed after implementation
             def map_change(change):
                 if change.op == 'A':
                     path = reviewed.path_to(change.path)
@@ -184,7 +184,7 @@ class GPKI:
                     removed = self.__git.path_to(change.path)
                     added = reviewed.path_to(change.path)
                     return KeyChange(added, removed)
-                # TODO (#31): also compare file name with its fingerprint (exctract to method)
+                # TODO (#31): also compare file name with its fingerprint (extract to method)
             for x in map(map_change, changes):
                 print(x)
             # TODO (#32):  accept / reject (also confirm)
