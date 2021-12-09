@@ -348,9 +348,8 @@ def main():
     args = sys.argv[1:]
     gpki = GPKI("/tmp/foobarbaz")
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
-    parsed_cli = cli_parser.parse_args(['encrypt', '-p', 'dupa'])
+    parsed_cli = cli_parser.parse_args(args)
     launch(parsed_cli, gpki)
-    # print(1)
 
 
 if __name__ == "__main__":
