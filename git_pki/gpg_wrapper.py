@@ -17,7 +17,7 @@ class GnuPGHandler:
         self.gpg = gnupg.GPG(gnupghome=gnupghome, options=['--yes', '--pinentry-mode', 'loopback'], verbose=verbose)
         self.gpg.encoding = 'utf-8'
 
-    def generate_key(self, name, email, description):
+    def generate_key(self, name, email, description, passphrase=None):
         # TODO (#12): handle null email and description
         key_spec = f"""
                    Key-Type:	RSA

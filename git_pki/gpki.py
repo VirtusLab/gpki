@@ -42,13 +42,8 @@ class GPKI:
         listener = KeyChangeListener(self.__gpg)
         self.__git.update(listener)
 
-<<<<<<< HEAD
-    def generate_identity(self, name, email, description):
-        # TODO (#22): verify that repository is in clean state? are we on master branch?
-=======
     def generate_identity(self, name, email, description, passphrase=None):
-        # TODO verify that repository is in clean state?
->>>>>>> 0120990... add test for creating identity, encrypt and deccrypt a message
+        # TODO (#22): verify that repository is in clean state? are we on master branch?
         existing_key = self.__gpg.private_key_fingerprint(name)
         if existing_key is not None:
             # If key exists, confirm removal of the private version and move public one to the archive
@@ -57,16 +52,9 @@ class GPKI:
                 return
             passphrase = getpass.getpass(f"Specify passphrase for the existing key of [{name}]: ")
             self.__gpg.remove_private_key(existing_key, passphrase)
-<<<<<<< HEAD
-           # TODO (#23): ask to set private/public key to expired state
-           #  if so, publish updated public key
-        fingerprint = self.__gpg.generate_key(name, email, description)
-=======
-            # TODO what with public key? I think we should keep it until revoked / expired
-            #  maybe asking if it should be revoked also?
-
+            # TODO (#23): ask to set private/public key to expired state
+            #  if so, publish updated public key
         fingerprint = self.__gpg.generate_key(name, email, description, passphrase=passphrase)
->>>>>>> 0120990... add test for creating identity, encrypt and deccrypt a message
         if fingerprint is None:
             return
 
