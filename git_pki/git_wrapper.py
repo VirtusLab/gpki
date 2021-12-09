@@ -14,7 +14,7 @@ class Git:
 
     def update(self, listener) -> List:
         if Path(f"{self.root_dir}/.git").is_dir():
-            # TODO reenable
+            # TODO (#21): reenable
             # branch=shell(self.home, "git rev-parse --abbrev-ref HEAD")
             # old_hash=shell(self.home, "git rev-parse HEAD")
             # shell(self.home, f"git pull origin {branch}")
@@ -43,7 +43,7 @@ class Git:
                 listener.key_added(path)
 
     def push(self, branch, message):
-        # TODO https://github.com/VirtusLab/gpki/issues/13 recover on failure
+        # TODO (#13): recover on failure
         shell(self.root_dir, f"git checkout -b {branch}")
         shell(self.root_dir, "git add -A")
         shell(self.root_dir, f"git commit -m '{message}'")
