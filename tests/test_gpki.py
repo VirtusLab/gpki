@@ -95,7 +95,7 @@ class GitPKI_Tester(TestCase):
             gpki = GPKI(temp_dir_name)
         gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
         branches = shell(os.path.join(temp_dir_name, 'vault', 'public'), 'git branch -a')
-        self.assertIn('remotes/origin/tester', branches)  # TODO https://github.com/VirtusLab/gpki/issues/36  rely on changes in Keys
+        self.assertIn('remotes/origin/tester', branches)  # TODO (#36): rely on changes in Keys
 
     @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
     @patch('iterfzf.iterfzf', mock_iterfzf)  # in test we got only one identity per test, so we can easily get the first one and move on

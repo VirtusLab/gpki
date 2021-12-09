@@ -19,5 +19,3 @@ setup(
     python_requires='>=3.6',
     options={'bdist_wheel': {'universal': '1'}},
 )
-
-

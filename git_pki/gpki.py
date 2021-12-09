@@ -1,4 +1,5 @@
 #!/usr/local/bin/python3
+import argparse
 import os
 import sys
 import tempfile
@@ -7,10 +8,12 @@ import getpass
 import iterfzf
 from pathlib import Path
 
+from git_pki import __version__
 from git_pki.custom_types import KeyChange
+from git_pki.exceptions import Git_PKI_Exception
 from git_pki.git_wrapper import Git
 from git_pki.gpg_wrapper import GnuPGHandler
-from git_pki.utils import mkdir, read_multiline_string
+from git_pki.utils import format_key, mkdir, read_multiline_string
 
 
 class KeyChangeListener:
@@ -78,23 +81,24 @@ class GPKI:
             # TODO (#25): align the text correctly
             print(f"{key}")
 
-    def encrypt(self, source, target):
-        f = lambda key: f"{key.fingerprint} {key.created_on} {key.expires_on} {key.name} {key.email} {key.description}"
-        available_recipients = map(f, self.__gpg.public_keys_list())
+    def encrypt(self, source, target, passphrase=None):
+        available_recipients = map(format_key, self.__gpg.public_keys_list())
         selection = iterfzf.iterfzf(available_recipients, prompt="Select recipient: ")
         if selection is None:
             return
         recipient = selection.split()[0]
 
-        available_signatories = map(f, self.__gpg.private_keys_list())
+        available_signatories = map(format_key, self.__gpg.private_keys_list())
         selection = iterfzf.iterfzf(available_signatories, prompt="Select signatory or press ctrl+d to not sign ")
-        signatory = None if selection else selection.split()[0]
+        signatory = None if selection is None else selection.split()[0]
 
-        passphrase = getpass.getpass(f"Specify passphrase for [{selection[0]}]: ")
+        if not passphrase:
+            passphrase = getpass.getpass(f"Specify passphrase for [{selection[0]}]: ")
 
         self.__gpg.encrypt(recipient, signatory, source, target, passphrase)
 
     def decrypt(self, source, target, passphrase=None):
+        # TODO (#35): Allow to decrypt from and to file
         if not passphrase:
             if source is not None and os.path.isfile(source):
                 with open(source, 'rb') as src_file:
@@ -206,13 +210,6 @@ class GPKI:
             self.__git.close_worktree(request.branch)
 
 
-def cmd_identity_generate(gpki, args):
-    name = args[0] if args else input("Specify name (required): ")
-    email = input("Specify email (optional): ")
-    descr = input("Specify description (optional): ")
-    gpki.generate_identity(name, email, descr)
-
-
 def cmd_encrypt(gpki, args):
     if len(args) == 0:
         gpki.encrypt(None, None)
@@ -232,40 +229,128 @@ def cmd_encrypt(gpki, args):
         gpki.encrypt(source, target)
 
 
-def dispatch(gpki, args, routes):
-    route = routes[args[0]]
-    if isinstance(route, dict):
-        dispatch(gpki, args[1:], route)
-    elif callable(route):
-        route(gpki, args[1:])
+def create_gpki_parser():
+    common_args_parser = argparse.ArgumentParser(
+        prog='git pki', argument_default=argparse.SUPPRESS, add_help=False)
+    common_args_parser.add_argument('-h', '--help')
+    common_args_parser.add_argument(
+        '--version', action='version', version=f'%(prog)s version {__version__}')
+    common_args_parser.add_argument('-v', '--verbose', action='store_true')
+
+    cli_parser = argparse.ArgumentParser(
+        prog='git pki',
+        argument_default=argparse.SUPPRESS,
+        add_help=False,
+        parents=[common_args_parser]
+    )
+
+    subparsers = cli_parser.add_subparsers(dest='command')
+
+    encrypt_parser = subparsers.add_parser(
+        'encrypt',
+        argument_default=argparse.SUPPRESS,
+        usage=argparse.SUPPRESS,
+        add_help=False,
+        parents=[common_args_parser])
+    encrypt_parser.add_argument('--source', '-s', default=None)
+    encrypt_parser.add_argument('--target', '-t', default=None)
+    encrypt_parser.add_argument('--passphrase', '-p', default=None)
+
+    decrypt_parser = subparsers.add_parser(
+        'decrypt',
+        argument_default=argparse.SUPPRESS,
+        usage=argparse.SUPPRESS,
+        add_help=False,
+        parents=[common_args_parser])
+    decrypt_parser.add_argument('--source', '-s', default=None)
+    decrypt_parser.add_argument('--target', '-t', default=None)
+    decrypt_parser.add_argument('--passphrase', '-p', default=None)
+
+    new_identity_parser = subparsers.add_parser(
+        'new_identity',
+        argument_default=argparse.SUPPRESS,
+        usage=argparse.SUPPRESS,
+        add_help=False,
+        parents=[common_args_parser])
+    new_identity_parser.add_argument('name', nargs='?')
+    new_identity_parser.add_argument('--email', default=None)
+    new_identity_parser.add_argument('--description', default=None)
+
+    import_key_parser = subparsers.add_parser(
+        'import_key',
+        argument_default=argparse.SUPPRESS,
+        usage=argparse.SUPPRESS,
+        add_help=False,
+        parents=[common_args_parser])
+    import_key_parser.add_argument('source_file', nargs='?')
+
+    export_key_parser = subparsers.add_parser(
+        'export_key',
+        argument_default=argparse.SUPPRESS,
+        usage=argparse.SUPPRESS,
+        add_help=False,
+        parents=[common_args_parser])
+    export_key_parser.add_argument('key_names', nargs='+')
+
+    subparsers.add_parser(
+        'list_recipients',
+        argument_default=argparse.SUPPRESS,
+        usage=argparse.SUPPRESS,
+        add_help=False,
+        parents=[common_args_parser])
+
+    subparsers.add_parser(
+        'list_signatory',
+        argument_default=argparse.SUPPRESS,
+        usage=argparse.SUPPRESS,
+        add_help=False,
+        parents=[common_args_parser])
+
+    subparsers.add_parser(
+        'request_review',
+        argument_default=argparse.SUPPRESS,
+        usage=argparse.SUPPRESS,
+        add_help=False,
+        parents=[common_args_parser])
+
+    return cli_parser
+
+
+def launch(parsed_cli, gpki):
+    cmd = parsed_cli.command
+
+    if cmd == 'decrypt':
+        gpki.decrypt(parsed_cli.source, parsed_cli.target, parsed_cli.passphrase)
+    elif cmd == 'encrypt':
+        gpki.encrypt(parsed_cli.source, parsed_cli.target, passphrase=parsed_cli.passphrase)
+    elif cmd == 'new_identity':
+        if 'name' not in parsed_cli:
+            raise Git_PKI_Exception("Name is mandatory while creating new identity.")
+        gpki.generate_identity(parsed_cli.name, parsed_cli.email, parsed_cli.description)
+    elif cmd == 'import_key':
+        if 'source_file' not in parsed_cli:
+            raise Git_PKI_Exception("Please specify a filename to import keys from.")
+        gpki.import_keys(parsed_cli.key_names)
+    elif cmd == 'export_key':
+        gpki.export_keys(parsed_cli.key_names)
+    elif cmd == 'list_recipients':
+        gpki.list_recipients()
+    elif cmd == 'list_signatory':
+        gpki.list_signatories()
+    elif cmd == 'request_review':
+        gpki.review_requests()
     else:
-        raise Exception(f"Unsupported route: {route}")
-
-
-routes = {
-    "decrypt": lambda gpki, args: gpki.decrypt(None, None),  # TODO (#35): Allow to decrypt from and to file
-    "encrypt": cmd_encrypt,
-    "new": cmd_identity_generate,
-    "key": {
-        "import": lambda gpki, files: gpki.import_keys(files),
-        "export": lambda gpki, names: gpki.export_keys(names)
-    },
-    "recipient": {
-        "list": lambda gpki, args: gpki.list_recipients()
-    },
-    "request": {
-        "review": lambda gpki, args: gpki.review_requests()
-    },
-    "signatory": {
-        "list": lambda gpki, args: gpki.list_signatories()
-    }
-}
+        # Some help should be printed here
+        raise Git_PKI_Exception(f"Command {cmd} is not a valid git-pki command.")
 
 
 def main():
     args = sys.argv[1:]
     gpki = GPKI("/tmp/foobarbaz")
-    dispatch(gpki, args, routes)
+    cli_parser: argparse.ArgumentParser = create_gpki_parser()
+    parsed_cli = cli_parser.parse_args(['encrypt', '-p', 'dupa'])
+    launch(parsed_cli, gpki)
+    # print(1)
 
 
 if __name__ == "__main__":

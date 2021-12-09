@@ -32,3 +32,7 @@ def shell(cwd, command: ShellCommand) -> str:
         raise EnvironmentError(
             f"The command [{command}]\nfailed with return code {proc.returncode}.\n"
             f"stderr:\n{proc.stderr.decode('utf-8')}")
+
+
+def format_key(key):
+    return f"{key.fingerprint} {key.created_on} {key.expires_on} {key.name} {key.email} {key.description}"
