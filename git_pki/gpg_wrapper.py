@@ -9,7 +9,7 @@ from datetime import datetime
 from git_pki.custom_types import Key
 
 
-verbose = True
+verbose = False
 
 
 class GnuPGHandler:

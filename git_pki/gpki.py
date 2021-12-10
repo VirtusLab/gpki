@@ -14,6 +14,7 @@ from git_pki.exceptions import Git_PKI_Exception
 from git_pki.git_wrapper import Git
 from git_pki.gpg_wrapper import GnuPGHandler
 from git_pki.utils import format_key, mkdir, read_multiline_string
+from git_pki import gpg_wrapper
 
 
 class KeyChangeListener:
@@ -137,18 +138,21 @@ class GPKI:
         message = input("Specify commit title: ")
         self.__git.push(branch, message)
 
-    def export_keys(self, names):
+    def export_keys(self, names, target_file):
         for name in names:
             key = self.__gpg.export_public_key(name)
             if not key:
                 print(f"{name}: Failed\n")
             else:
                 print(f"{name}:\n{key}\n")
+                if target_file:
+                    self.__export_key(key, Path(target_file))
+                    print(f"{name}: exported to file: {target_file}")
 
     @staticmethod
     def __export_key(key, path):
         mkdir(path.parent)
-        with open(path, "w") as file:
+        with open(path, "a") as file:
             file.write(key)
 
     def __import_key(self, path):
@@ -234,8 +238,8 @@ def create_gpki_parser():
         prog='git pki', argument_default=argparse.SUPPRESS, add_help=False)
     common_args_parser.add_argument('-h', '--help')
     common_args_parser.add_argument(
-        '--version', action='version', version=f'%(prog)s version {__version__}')
-    common_args_parser.add_argument('-v', '--verbose', action='store_true')
+        '--version', '-v', action='version', version=f'%(prog)s version {__version__}')
+    common_args_parser.add_argument('--verbose', action='store_true', default=False)
 
     cli_parser = argparse.ArgumentParser(
         prog='git pki',
@@ -252,9 +256,9 @@ def create_gpki_parser():
         usage=argparse.SUPPRESS,
         add_help=False,
         parents=[common_args_parser])
-    encrypt_parser.add_argument('--source', '-s', default=None)
-    encrypt_parser.add_argument('--target', '-t', default=None)
-    encrypt_parser.add_argument('--passphrase', '-p', default=None)
+    encrypt_parser.add_argument('--input', '-i', default=None)
+    encrypt_parser.add_argument('--output', '-o', default=None)
+    encrypt_parser.add_argument('--password', '-p', default=None)
 
     decrypt_parser = subparsers.add_parser(
         'decrypt',
@@ -262,12 +266,12 @@ def create_gpki_parser():
         usage=argparse.SUPPRESS,
         add_help=False,
         parents=[common_args_parser])
-    decrypt_parser.add_argument('--source', '-s', default=None)
-    decrypt_parser.add_argument('--target', '-t', default=None)
-    decrypt_parser.add_argument('--passphrase', '-p', default=None)
+    decrypt_parser.add_argument('--input', '-i', default=None)
+    decrypt_parser.add_argument('--output', '-o', default=None)
+    decrypt_parser.add_argument('--password', '-p', default=None)
 
     new_identity_parser = subparsers.add_parser(
-        'new_identity',
+        'identity',
         argument_default=argparse.SUPPRESS,
         usage=argparse.SUPPRESS,
         add_help=False,
@@ -277,37 +281,38 @@ def create_gpki_parser():
     new_identity_parser.add_argument('--description', default=None)
 
     import_key_parser = subparsers.add_parser(
-        'import_key',
+        'import',
         argument_default=argparse.SUPPRESS,
         usage=argparse.SUPPRESS,
         add_help=False,
         parents=[common_args_parser])
-    import_key_parser.add_argument('source_file', nargs='?')
+    import_key_parser.add_argument('--input', '-o', nargs='+', default=None)
 
     export_key_parser = subparsers.add_parser(
-        'export_key',
+        'export',
         argument_default=argparse.SUPPRESS,
         usage=argparse.SUPPRESS,
         add_help=False,
         parents=[common_args_parser])
     export_key_parser.add_argument('key_names', nargs='+')
+    export_key_parser.add_argument('--output', '-o', default=None)
 
     subparsers.add_parser(
-        'list_recipients',
+        'recipients',
         argument_default=argparse.SUPPRESS,
         usage=argparse.SUPPRESS,
         add_help=False,
         parents=[common_args_parser])
 
     subparsers.add_parser(
-        'list_signatory',
+        'signatories',
         argument_default=argparse.SUPPRESS,
         usage=argparse.SUPPRESS,
         add_help=False,
         parents=[common_args_parser])
 
     subparsers.add_parser(
-        'request_review',
+        'review',
         argument_default=argparse.SUPPRESS,
         usage=argparse.SUPPRESS,
         add_help=False,
@@ -316,28 +321,30 @@ def create_gpki_parser():
     return cli_parser
 
 
-def launch(parsed_cli, gpki):
+def launch(parsed_cli):
+    gpg_wrapper.verbose = parsed_cli.verbose
+
+    gpki = GPKI("/tmp/foobarbaz")
+
     cmd = parsed_cli.command
 
     if cmd == 'decrypt':
-        gpki.decrypt(parsed_cli.source, parsed_cli.target, parsed_cli.passphrase)
+        gpki.decrypt(parsed_cli.input, parsed_cli.output, parsed_cli.password)
     elif cmd == 'encrypt':
-        gpki.encrypt(parsed_cli.source, parsed_cli.target, passphrase=parsed_cli.passphrase)
-    elif cmd == 'new_identity':
+        gpki.encrypt(parsed_cli.input, parsed_cli.output, parsed_cli.password)
+    elif cmd == 'identity':
         if 'name' not in parsed_cli:
             raise Git_PKI_Exception("Name is mandatory while creating new identity.")
         gpki.generate_identity(parsed_cli.name, parsed_cli.email, parsed_cli.description)
-    elif cmd == 'import_key':
-        if 'source_file' not in parsed_cli:
-            raise Git_PKI_Exception("Please specify a filename to import keys from.")
-        gpki.import_keys(parsed_cli.key_names)
-    elif cmd == 'export_key':
-        gpki.export_keys(parsed_cli.key_names)
-    elif cmd == 'list_recipients':
+    elif cmd == 'import':
+        gpki.import_keys(parsed_cli.input)
+    elif cmd == 'export':
+        gpki.export_keys(parsed_cli.key_names, parsed_cli.output)
+    elif cmd == 'recipients':
         gpki.list_recipients()
-    elif cmd == 'list_signatory':
+    elif cmd == 'signatories':
         gpki.list_signatories()
-    elif cmd == 'request_review':
+    elif cmd == 'review':
         gpki.review_requests()
     else:
         # Some help should be printed here
@@ -346,10 +353,9 @@ def launch(parsed_cli, gpki):
 
 def main():
     args = sys.argv[1:]
-    gpki = GPKI("/tmp/foobarbaz")
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
     parsed_cli = cli_parser.parse_args(args)
-    launch(parsed_cli, gpki)
+    launch(parsed_cli)
 
 
 if __name__ == "__main__":
