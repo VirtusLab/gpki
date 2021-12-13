@@ -98,7 +98,7 @@ class GitPKI_Tester(TestCase):
         self.assertIn('remotes/origin/tester', branches)  # TODO (#36): rely on changes in Keys
 
     @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
-    @patch('iterfzf.iterfzf', mock_iterfzf)  # in test we got only one identity per test, so we can easily get the first one and move on
+    @patch('iterfzf.iterfzf', mock_iterfzf)  # in tests we got only one identity per test, so we can easily get the first one and move on
     def test_encrypt_decrypt_message(self):
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
             gpki = GPKI(GitPKI_Tester.get_temp_directory())
@@ -123,3 +123,50 @@ class GitPKI_Tester(TestCase):
         relevant_message = raw_output.split('\n')[-2]
         self.assertIn("Let's try to encrypt this message", raw_output)
         self.assertEqual("Let's try to encrypt this message", relevant_message)
+
+    @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
+    @patch('iterfzf.iterfzf', mock_iterfzf)  # in tests we got only one identity per test, so we can easily get the first one and move on
+    def test_encrypt_to_file_decrypt_from_file(self):
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            gpki = GPKI(GitPKI_Tester.get_temp_directory())
+        gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
+
+        message = "confidencial test message"
+
+        stdin_backup = sys.stdin
+        sys.stdin = StringIO(message)
+        with StringIO() as out:
+            gpki.encrypt(None, 'output.txt')
+
+        with StringIO() as out:
+            with redirect_stdout(out):
+                gpki.decrypt('output.txt', None)
+            raw_output = out.getvalue()
+
+        sys.stdin = stdin_backup
+        decrypted_output = raw_output.split('\n')[-2]
+
+        self.assertIn(message, raw_output)
+        self.assertEqual(message, decrypted_output)
+
+    @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
+    @patch('iterfzf.iterfzf', mock_iterfzf)  # in tests we got only one identity per test, so we can easily get the first one and move on
+    def test_encrypt_from_file_to_file_decrypt_from_file_to_file(self):
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            gpki = GPKI(GitPKI_Tester.get_temp_directory())
+        gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
+
+        message = "Strong encryption"
+        with open('confidencial_source_file', "w") as file:
+            file.write(message)
+
+        gpki.encrypt('confidencial_source_file', 'encrypted_output')
+        gpki.decrypt('encrypted_output', 'decrypted_file')
+
+        with open('confidencial_source_file', "r") as file:
+            initial_msg = file.read()
+
+        with open('decrypted_file', "r") as decrypted_file:
+            decrypted_file_body = decrypted_file.read()
+
+        self.assertEqual(initial_msg, decrypted_file_body)

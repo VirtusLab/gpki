@@ -83,6 +83,9 @@ class GPKI:
             print(f"{key}")
 
     def encrypt(self, source, target, passphrase=None):
+        if target and os.path.isfile(target):
+            if input(f"Target file already exist, do you want to overwrite? [yN] ").lower() != 'y':
+                return
         available_recipients = map(format_key, self.__gpg.public_keys_list())
         selection = iterfzf.iterfzf(available_recipients, prompt="Select recipient: ")
         if selection is None:
@@ -103,8 +106,8 @@ class GPKI:
             if input(f"Target file already exist, do you want to overwrite? [yN] ").lower() != 'y':
                 return
 
-        if source is not None and os.path.isfile(os.path.join(os.getcwd(), source)):
-            with open(os.path.join(os.getcwd(), source), 'rb') as src_file:
+        if source is not None and os.path.isfile(source):
+            with open(source, 'rb') as src_file:
                 recipient = self.__gpg.get_recipients_by_source_file(src_file)
         else:
             data = []

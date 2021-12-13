@@ -78,6 +78,8 @@ class GnuPGHandler:
         else:
             with open(source, "rb") as data:
                 result = self.gpg.encrypt_file(data, recipient, sign=signatory, output=target, passphrase=passphrase)
+                if result.ok:
+                    print(f"Encrypted data saved in {target}")
 
         if not result.ok:
             print(f"Could not encrypt: {result.status}. Was passphrase correct?")
@@ -86,8 +88,8 @@ class GnuPGHandler:
             print(result)
 
     def decrypt(self, source, target, passphrase):
-        if os.path.isfile(os.path.join(os.getcwd(), source)):
-            with open(os.path.join(os.getcwd(), source), "rb") as source_file:
+        if os.path.isfile(source):
+            with open(source, "rb") as source_file:
                 result = self.gpg.decrypt_file(source_file, passphrase=passphrase)
         else:
             result = self.gpg.decrypt("".join(source), passphrase=passphrase)
@@ -97,7 +99,7 @@ class GnuPGHandler:
         if target is None:
             print(result)
         else:
-            with open(os.path.join(os.getcwd(), target), "w") as target_file:
+            with open(target, "w") as target_file:
                 target_file.write(str(result))
             print(f"Decrypted data saved in {target}")
         return
