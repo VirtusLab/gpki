@@ -363,7 +363,6 @@ def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
     parsed_cli = cli_parser.parse_args(args)
-    #parsed_cli = cli_parser.parse_args(['export', '1', '2', '3', '-o', 'target_path'])
     launch(parsed_cli)
 
 
