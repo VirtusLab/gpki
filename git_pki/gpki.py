@@ -138,7 +138,15 @@ class GPKI:
         message = input("Specify commit title: ")
         self.__git.push(branch, message)
 
-    def export_keys(self, names, target_file):
+    def export_keys(self, names, target_file, mode=None):
+        if os.path.isfile(target_file):
+            if not mode:
+                choices = ['append', 'cancel', 'overwrite']
+                mode = iterfzf.iterfzf(choices, prompt=f"Output file: {target_file} already exists, select: <append> to add keys to the file, <overwrite> to remove existing file, or <cancel> to abort")
+            if mode == 'overwrite':
+                os.remove(target_file)
+            if mode == 'cancel':
+                return
         for name in names:
             key = self.__gpg.export_public_key(name)
             if not key:
@@ -355,6 +363,7 @@ def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
     parsed_cli = cli_parser.parse_args(args)
+    #parsed_cli = cli_parser.parse_args(['export', '1', '2', '3', '-o', 'target_path'])
     launch(parsed_cli)
 
 
