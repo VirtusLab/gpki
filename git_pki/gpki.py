@@ -369,7 +369,6 @@ def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
     parsed_cli = cli_parser.parse_args(args)
-    #parsed_cli = cli_parser.parse_args(['decrypt', '-i', 'hidden.txt', '-o', '1.txt'])
     launch(parsed_cli)
 
 
