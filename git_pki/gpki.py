@@ -99,18 +99,21 @@ class GPKI:
         self.__gpg.encrypt(recipient, signatory, source, target, passphrase)
 
     def decrypt(self, source, target, passphrase=None):
-        # TODO (#35): Allow to decrypt from and to file
+        if target and os.path.isfile(target):
+            if input(f"Target file already exist, do you want to overwrite? [yN] ").lower() != 'y':
+                return
+
+        if source is not None and os.path.isfile(os.path.join(os.getcwd(), source)):
+            with open(os.path.join(os.getcwd(), source), 'rb') as src_file:
+                recipient = self.__gpg.get_recipients_by_source_file(src_file)
+        else:
+            data = []
+            print("Paste message, then press enter and ctrl+d")
+            for line in sys.stdin:
+                data.append(line)
+            source = "".join(data)
+            recipient = self.__gpg.get_recipients_by_message(source)
         if not passphrase:
-            if source is not None and os.path.isfile(source):
-                with open(source, 'rb') as src_file:
-                    recipient = self.__gpg.get_recipient(src_file)
-            else:
-                data = []
-                print("Paste message, then press enter and ctrl+d")
-                for line in sys.stdin:
-                    data.append(line)
-                source = "".join(data)
-                recipient = self.__gpg.get_recipient(source)
             passphrase = getpass.getpass(f"Specify passphrase for {recipient}: ")
         self.__gpg.decrypt(source, target, passphrase)
 
@@ -363,6 +366,7 @@ def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
     parsed_cli = cli_parser.parse_args(args)
+    #parsed_cli = cli_parser.parse_args(['decrypt', '-i', 'hidden.txt', '-o', '1.txt'])
     launch(parsed_cli)
 
 

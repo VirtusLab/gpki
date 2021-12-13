@@ -86,22 +86,27 @@ class GnuPGHandler:
             print(result)
 
     def decrypt(self, source, target, passphrase):
-        if os.path.isfile(source):
-            with open(source, "rb") as data:
-                result = self.gpg.decrypt_file(data, output=target, passphrase=passphrase)
+        if os.path.isfile(os.path.join(os.getcwd(), source)):
+            with open(os.path.join(os.getcwd(), source), "rb") as source_file:
+                result = self.gpg.decrypt_file(source_file, passphrase=passphrase)
         else:
-            result = self.gpg.decrypt("".join(source), output=target, passphrase=passphrase)
+            result = self.gpg.decrypt("".join(source), passphrase=passphrase)
         if not result.ok:
             print(f"Could not decrypt: {result.status}. Was passphrase correct?")
             return
         if target is None:
             print(result)
-
-    def get_recipient(self, data_or_stream):
-        if os.path.isfile(data_or_stream):
-            return self.gpg.get_recipients_file(data_or_stream)
         else:
-            return self.gpg.get_recipients(data_or_stream)
+            with open(os.path.join(os.getcwd(), target), "w") as target_file:
+                target_file.write(str(result))
+            print(f"Decrypted data saved in {target}")
+        return
+
+    def get_recipients_by_source_file(self, source_file):
+        return self.gpg.get_recipients_file(source_file)
+
+    def get_recipients_by_message(self, message):
+        return self.gpg.get_recipients(message)
 
     def scan(self, file):
         keys = self.gpg.scan_keys(file)
