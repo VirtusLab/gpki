@@ -148,7 +148,7 @@ class GPKI:
         self.__git.push(branch, message)
 
     def export_keys(self, names, target_file, mode=None):
-        if os.path.isfile(target_file):
+        if target_file is not None and os.path.isfile(target_file):
             if not mode:
                 choices = ['append', 'cancel', 'overwrite']
                 mode = iterfzf.iterfzf(choices, prompt=f"Output file: {target_file} already exists, select: <append> to add keys to the file, <overwrite> to remove existing file, or <cancel> to abort")
@@ -173,29 +173,47 @@ class GPKI:
             file.write(key)
 
     def __import_key(self, path):
-        keys = self.__gpg.scan(path)
-        print(f"File {path} contains:")  # TODO (#26): when we fail to import any key from a file, we should remove all keys from this file
-        for key in keys:
-            print(f"{key.fingerprint} key of {key.name} valid between {key.created_on} and {key.expires_on}")
-        if input("is that OK? [yN] ").lower() != 'y':
+        successfully_imported = []
+        keys_from_keychain = list(self.__gpg.public_keys_list())
+        keys_from_file = list(self.__gpg.scan(path))
+        if keys_from_file:
+            print(f"File {path} contains:")  # TODO (#26): when we fail to import any key from a file, we should remove all keys from this file
+            for key in keys_from_file:
+                print(f"{key.fingerprint} key of {key.name} valid between {key.created_on} and {key.expires_on}")
+            if input("is that OK? [yN] ").lower() != 'y':
+                return []
+        else:
+            print(f"File {path} does not contain any key, aborting.")
             return []
 
         with open(path, "rb") as file:
             imported = self.__gpg.import_public_key(file.read())
 
-        if not imported:
+        if not imported:  # change/(remove maybe cause this is handled earlier while checking if file contains keys) condition as we got output here: [{'fingerprint': 'FE0F710BE0FBDE4AC0384BF4C9A8DFBD8930675C', 'ok': '0', 'text': 'Not actually changed\n'}]
             return []
-        mkdir(f"{self.__git.identity_dir}")  # I don't really want to repeat that every goddamn time...
-        for status in imported:
-            fingerprint = status["fingerprint"].lower()
-            reason = status["text"]
-            if status["ok"] is None:
+        for key_status in imported:
+            fingerprint = key_status["fingerprint"].lower()
+            reason = key_status["text"]
+            if key_status["ok"] == '0':
                 print(f"Failed to import {fingerprint} due to: {reason}")
-            else:  # TODO (#27): do not print out unchanged keys
-                print(f"Imported: {fingerprint}. {reason}")
+                if reason == 'Not actually changed\n':
+                    continue
+                print(f"Removing all keys from given file.")
+                keys_to_remove = list(set(keys_from_file) - set(keys_from_keychain))  # this covers only exactly same keys ;/
+                self.remove_keys(keys_to_remove)
+                break
+            else:
+                successfully_imported.append(key_status)
+        else:  # TODO (#27): do not print out unchanged keys
+            for key in successfully_imported:
+                print(f'Imported: {key["fingerprint"].lower()}. {key["text"]}')
 
         # TODO (#28): do not return fingerprints of the unchanged keys
-        return map(lambda x: x["fingerprint"].lower(), imported)
+        return list(map(lambda x: x["fingerprint"].lower(), successfully_imported)) if successfully_imported else []
+
+    def remove_keys(self, key_list):
+        for key in key_list:
+            self.__gpg.remove_public_key(key.fingerprint)
 
     def review_requests(self):
         unmerged = list(self.__git.list_branches_unmerged_to_remote_counterpart_of(self.__git.current_branch()))
@@ -229,25 +247,6 @@ class GPKI:
             #  ask if accept/reject, accept => merge and push, reject => ask to remove branch
         finally:
             self.__git.close_worktree(request.branch)
-
-
-def cmd_encrypt(gpki, args):
-    if len(args) == 0:
-        gpki.encrypt(None, None)
-    elif len(args) == 1:
-        path = Path(args[0])
-        if path.is_file():
-            gpki.encrypt(source=path, target=None)
-        else:
-            gpki.encrypt(source=None, target=path)
-    else:
-        source = Path(args[0])
-        target = Path(args[1])
-        if not source.is_file():
-            raise Exception(f"Not a file: {source}")
-        if target.is_file():
-            pass  # TODO (#33): ask to overwrite
-        gpki.encrypt(source, target)
 
 
 def create_gpki_parser():
@@ -303,7 +302,7 @@ def create_gpki_parser():
         usage=argparse.SUPPRESS,
         add_help=False,
         parents=[common_args_parser])
-    import_key_parser.add_argument('--input', '-o', nargs='+', default=None)
+    import_key_parser.add_argument('--input', '-i', nargs='+', default=None)
 
     export_key_parser = subparsers.add_parser(
         'export',
@@ -371,7 +370,7 @@ def launch(parsed_cli):
 def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
-    parsed_cli = cli_parser.parse_args(args)
+    parsed_cli = cli_parser.parse_args(['import', '-i', 'exp_keys.txt'])
     launch(parsed_cli)
 
 

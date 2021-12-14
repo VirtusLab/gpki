@@ -11,6 +11,7 @@ class Git:
         self.root_dir = root_dir
         self.identity_dir = f"{root_dir}/identities"
         self.key_dir = f"{root_dir}/keys"
+        mkdir(f"{self.identity_dir}")
 
     def update(self, listener) -> List:
         if Path(f"{self.root_dir}/.git").is_dir():
