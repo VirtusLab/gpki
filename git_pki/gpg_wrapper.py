@@ -100,10 +100,10 @@ class GnuPGHandler:
         else:
             print(f"Decrypted data saved in {target}")
 
-    def get_recipients_by_source_file(self, source_file):
+    def get_recipients_from_file(self, source_file):
         return self.gpg.get_recipients_file(source_file)
 
-    def get_recipients_by_message(self, message):
+    def get_recipients_from_message(self, message):
         return self.gpg.get_recipients(message)
 
     def scan(self, file):

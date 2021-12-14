@@ -83,7 +83,7 @@ class GPKI:
             print(f"{key}")
 
     def encrypt(self, source, target, passphrase=None):
-        if target and os.path.isfile(target):
+        if target is not None and os.path.isfile(target):
             if input(f"Target file already exist, do you want to overwrite? [yN] ").lower() != 'y':
                 return
         available_recipients = map(format_key, self.__gpg.public_keys_list())
@@ -102,20 +102,23 @@ class GPKI:
         self.__gpg.encrypt(recipient, signatory, source, target, passphrase)
 
     def decrypt(self, source, target, passphrase=None):
-        if target and os.path.isfile(target):
+        if target is not None and os.path.isfile(target):
             if input(f"Target file already exist, do you want to overwrite? [yN] ").lower() != 'y':
                 return
 
-        if source is not None and os.path.isfile(source):
-            with open(source, 'rb') as src_file:
-                recipient = self.__gpg.get_recipients_by_source_file(src_file)
-        else:
+        if source is None:
             data = []
             print("Paste message, then press enter and ctrl+d")
             for line in sys.stdin:
                 data.append(line)
             source = "".join(data)
-            recipient = self.__gpg.get_recipients_by_message(source)
+            recipient = self.__gpg.get_recipients_from_message(source)
+        elif os.path.isfile(source):
+            with open(source, 'rb') as src_file:
+                recipient = self.__gpg.get_recipients_from_file(src_file)
+        else:
+            print(f"Specified source file: {source} was not found, aborting.")
+            return
         if not passphrase:
             passphrase = getpass.getpass(f"Specify passphrase for {recipient}: ")
         self.__gpg.decrypt(source, target, passphrase)
