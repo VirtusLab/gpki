@@ -75,9 +75,11 @@ class GnuPGHandler:
             for line in sys.stdin:
                 data.append(line)
             result = self.gpg.encrypt("".join(data), recipient, sign=signatory, output=target, passphrase=passphrase)
-        else:
+        elif os.path.isfile(source):
             with open(source, "rb") as data:
                 result = self.gpg.encrypt_file(data, recipient, sign=signatory, output=target, passphrase=passphrase)
+        else:
+            print(f"Specified source file: {source} was not found, aborting.")
         if not result.ok:
             print(f"Could not encrypt: {result.status}. Was passphrase correct?")
             return
