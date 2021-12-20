@@ -174,10 +174,10 @@ class GPKI:
 
     def __import_key(self, path):
         successfully_imported = []
-        keys_from_keychain = list(self.__gpg.public_keys_list())
+        do_revert = False
         keys_from_file = list(self.__gpg.scan(path))
         if keys_from_file:
-            print(f"File {path} contains:")  # TODO (#26): when we fail to import any key from a file, we should remove all keys from this file
+            print(f"File {path} contains:")
             for key in keys_from_file:
                 print(f"{key.fingerprint} key of {key.name} valid between {key.created_on} and {key.expires_on}")
             if input("is that OK? [yN] ").lower() != 'y':
@@ -186,11 +186,9 @@ class GPKI:
             print(f"File {path} does not contain any key, aborting.")
             return []
 
-        with open(path, "rb") as file:
+        with open(path, 'rb') as file:
             imported = self.__gpg.import_public_key(file.read())
 
-        if not imported:  # change/(remove maybe cause this is handled earlier while checking if file contains keys) condition as we got output here: [{'fingerprint': 'FE0F710BE0FBDE4AC0384BF4C9A8DFBD8930675C', 'ok': '0', 'text': 'Not actually changed\n'}]
-            return []
         for key_status in imported:
             fingerprint = key_status["fingerprint"].lower()
             reason = key_status["text"]
@@ -198,22 +196,45 @@ class GPKI:
                 print(f"Failed to import {fingerprint} due to: {reason}")
                 if reason == 'Not actually changed\n':
                     continue
-                print(f"Removing all keys from given file.")
-                keys_to_remove = list(set(keys_from_file) - set(keys_from_keychain))  # this covers only exactly same keys ;/
-                self.remove_keys(keys_to_remove)
-                break
+                do_revert = True
             else:
                 successfully_imported.append(key_status)
-        else:  # TODO (#27): do not print out unchanged keys
+
+        if do_revert:
+            print("Something went wrong during import, reverting changes")
+            self.remove_keys([key['fingerprint'] for key in successfully_imported])
+            self.__load_keys_from_git(successfully_imported)
+            return []
+
+        if successfully_imported:
             for key in successfully_imported:
                 print(f'Imported: {key["fingerprint"].lower()}. {key["text"]}')
 
-        # TODO (#28): do not return fingerprints of the unchanged keys
-        return list(map(lambda x: x["fingerprint"].lower(), successfully_imported)) if successfully_imported else []
+            return list(map(lambda x: x["fingerprint"].lower(), successfully_imported)) if successfully_imported else []
+        else:
+            print(f"None the keys from file {path} was added.")
+            return []
 
-    def remove_keys(self, key_list):
-        for key in key_list:
-            self.__gpg.remove_public_key(key.fingerprint)
+    def __load_keys_from_git(self, changed_keys):
+        local_branches = self.__git.get_local_branches()
+        fingerprint_list = [key['fingerprint'].lower() for key in changed_keys]
+        for fprint in fingerprint_list:
+            for branch in local_branches:
+                if fprint in branch:
+                    self.__git.checkout(branch)
+                    path = os.path.join(self.__file_repository, f"identities/{branch.replace('/', '/$')}")
+                    try:
+                        with open(path, "rb") as file:
+                            imported = self.__gpg.import_public_key(file.read())
+                    except FileNotFoundError:
+                        pass  # entirely new key, not present in git yet, already deleted from keychain
+                    self.__git.checkout('-')
+                    if imported[0]['ok'] == '0':
+                        print("Could not revert, ")  # may happen when we have private key also added (from `generate identity`)
+
+    def remove_keys(self, fingerprint_list):
+        for fingerprint in fingerprint_list:
+            self.__gpg.remove_public_key(fingerprint)
 
     def review_requests(self):
         unmerged = list(self.__git.list_branches_unmerged_to_remote_counterpart_of(self.__git.current_branch()))
@@ -370,7 +391,7 @@ def launch(parsed_cli):
 def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
-    parsed_cli = cli_parser.parse_args(['import', '-i', 'exp_keys.txt'])
+    parsed_cli = cli_parser.parse_args(args)
     launch(parsed_cli)
 
 

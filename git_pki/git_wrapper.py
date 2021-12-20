@@ -57,6 +57,12 @@ class Git:
         to_tuple = lambda branch: Request(branch, self.__commit_title(branch))
         return map(to_tuple, map(strip, raw))
 
+    def get_local_branches(self):
+        return shell(self.root_dir, 'git branch').replace('\n', '').split()
+
+    def checkout(self, branch_name):
+        shell(self.root_dir, f"git checkout {branch_name}")
+
     def file_diff(self, branch):
         raw = shell(self.root_dir, f'git diff --name-status HEAD.."{branch}" | sort').splitlines()
         strip = lambda line: line.split("\t")
