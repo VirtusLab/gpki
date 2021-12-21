@@ -13,7 +13,7 @@ from git_pki.custom_types import KeyChange
 from git_pki.exceptions import Git_PKI_Exception
 from git_pki.git_wrapper import Git
 from git_pki.gpg_wrapper import GnuPGHandler
-from git_pki.utils import does_file_exist, format_key, get_file_list, mkdir, read_multiline_string
+from git_pki.utils import file_exists, format_key, get_file_list, mkdir, read_multiline_string
 from git_pki import gpg_wrapper
 
 
@@ -102,7 +102,7 @@ class GPKI:
         self.__gpg.encrypt(recipient, signatory, source, target, passphrase)
 
     def decrypt(self, source, target, passphrase=None):
-        if does_file_exist(target):
+        if file_exists(target):
             if input(f"Target file already exist, do you want to overwrite? [yN] ").lower() != 'y':
                 return
 
@@ -148,7 +148,7 @@ class GPKI:
         self.__git.push(branch, message)
 
     def export_keys(self, names, target_file, mode=None):
-        if does_file_exist(target_file):
+        if file_exists(target_file):
             if not mode:
                 choices = ['append', 'cancel', 'overwrite']
                 mode = iterfzf.iterfzf(choices, prompt=f"Output file: {target_file} already exists, select: <append> to add keys to the file, <overwrite> to remove existing file, or <cancel> to abort")
@@ -173,7 +173,7 @@ class GPKI:
             file.write(key)
 
     def __import_key(self, path):
-        if not does_file_exist(path):
+        if not file_exists(path):
             print(f"File {path} not found, aborting.")
             return []
         keys_from_file = self.__gpg.scan(path)
@@ -237,11 +237,11 @@ class GPKI:
 
     def __load_keys_from_git(self, key_list):
         fingerprint_list = [key['fingerprint'].lower() for key in key_list]
-        for fprint in fingerprint_list:
-            for file in get_file_list(self.__file_repository):
-                if file.endswith(fprint):
-                    with open(file, "rb") as f:
-                        self.__gpg.import_public_key(f.read())
+        backup_files = [self.__git.get_public_key_file_path(fingerprint) for fingerprint in fingerprint_list]
+        for file in backup_files:
+            if file:
+                with open(file, "rb") as f:
+                    self.__gpg.import_public_key(f.read())
 
     def remove_keys(self, fingerprint_list):
         for fingerprint in fingerprint_list:

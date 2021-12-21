@@ -23,11 +23,8 @@ def mkdir(name, mode=None):
     return name
 
 
-def does_file_exist(file_path):
-    if file_path is not None and os.path.isfile(file_path):
-        return True
-    else:
-        return False
+def file_exists(file_path):
+    return file_path is not None and os.path.isfile(file_path)
 
 
 def shell(cwd, command: ShellCommand) -> str:
