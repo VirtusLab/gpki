@@ -170,3 +170,46 @@ class GitPKI_Tester(TestCase):
             decrypted_file_body = decrypted_file.read()
 
         self.assertEqual(initial_msg, decrypted_file_body)
+
+    def test_import_keys_from_file(self):
+        test_dir = os.path.abspath(__file__)
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            gpki = GPKI(GitPKI_Tester.get_temp_directory())
+
+        with patch('builtins.input', return_value='y') as _:  # To confirm that file contains proper keys
+            with StringIO() as out:
+                with redirect_stdout(out):
+                    gpki.import_keys([test_dir.replace('test_gpki.py', 'test_keys_input.txt')])
+                raw_output = out.getvalue()
+
+        desired_output = ('\nImport Summary:\n\n'
+                          'Unchanged:\n'
+                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 p  \n\n'  
+                          'Succeded:\n'
+                          'fe0f710be0fbde4ac0384bf4c9a8dfbd8930675c 2021-12-13 2022-06-11 p  \n'  
+                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 p  \n'
+                          '5ec643aba5e71827805eff7b297226aeb797e70c 2021-12-20 2022-06-18 p')
+
+        self.assertIn(desired_output, raw_output)
+
+        with patch('builtins.input', return_value='y') as _:  # To confirm that file contains proper keys
+            with StringIO() as out:
+                with redirect_stdout(out):
+                    gpki.import_keys([test_dir.replace('test_gpki.py', 'test_keys_input.txt')])
+                raw_output = out.getvalue()
+
+        desired_output = ('\nImport Summary:\n\n'
+                          'Unchanged:\n'
+                          'fe0f710be0fbde4ac0384bf4c9a8dfbd8930675c 2021-12-13 2022-06-11 p  \n'
+                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 p  \n'
+                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 p  \n'
+                          '5ec643aba5e71827805eff7b297226aeb797e70c 2021-12-20 2022-06-18 p')
+
+        self.assertIn(desired_output, raw_output)
+
+        # expired key in file
+        with patch('builtins.input', return_value='y') as _:  # To confirm that file contains proper keys
+            with StringIO() as out:
+                with redirect_stdout(out):
+                    gpki.import_keys([test_dir.replace('test_gpki.py', 'test_keys_input_expired.txt')])
+                raw_output = out.getvalue()

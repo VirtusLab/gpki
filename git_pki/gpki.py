@@ -173,6 +173,9 @@ class GPKI:
             file.write(key)
 
     def __import_key(self, path):
+        if not does_file_exist(path):
+            print(f"File {path} not found, aborting.")
+            return []
         keys_from_file = self.__gpg.scan(path)
         if not keys_from_file:
             print(f"File {path} does not contain any key, aborting.")
