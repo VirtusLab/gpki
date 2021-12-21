@@ -23,6 +23,13 @@ def mkdir(name, mode=None):
     return name
 
 
+def does_file_exist(file_path):
+    if file_path is not None and os.path.isfile(file_path):
+        return True
+    else:
+        return False
+
+
 def shell(cwd, command: ShellCommand) -> str:
     logging.debug(command)
     proc = subprocess.run(command, cwd=cwd, shell=True, capture_output=True)
@@ -36,3 +43,11 @@ def shell(cwd, command: ShellCommand) -> str:
 
 def format_key(key):
     return f"{key.fingerprint} {key.created_on} {key.expires_on} {key.name} {key.email} {key.description}"
+
+
+def get_file_list(root_dir):
+    file_list = []
+    for path, subdirs, files in os.walk(root_dir):
+        for name in files:
+            file_list.append(os.path.join(path, name))
+    return file_list

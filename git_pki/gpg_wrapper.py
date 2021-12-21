@@ -35,7 +35,8 @@ class GnuPGHandler:
         return self.gpg.export_keys(name)
 
     def import_public_key(self, armored):
-        print(f"Importing {armored}")
+        if verbose:
+            print(f"Importing {armored}")
         return self.gpg.import_keys(armored).results
 
     def private_keys_list(self):
@@ -110,7 +111,7 @@ class GnuPGHandler:
 
     def scan(self, file):
         keys = self.gpg.scan_keys(file)
-        return map(self.parse_key, keys)
+        return list(map(self.parse_key, keys))
 
     def parse_key(self, raw_key):
         uid = raw_key["uids"][0]

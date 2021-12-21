@@ -13,7 +13,7 @@ from git_pki.custom_types import KeyChange
 from git_pki.exceptions import Git_PKI_Exception
 from git_pki.git_wrapper import Git
 from git_pki.gpg_wrapper import GnuPGHandler
-from git_pki.utils import format_key, mkdir, read_multiline_string
+from git_pki.utils import does_file_exist, format_key, get_file_list, mkdir, read_multiline_string
 from git_pki import gpg_wrapper
 
 
@@ -102,7 +102,7 @@ class GPKI:
         self.__gpg.encrypt(recipient, signatory, source, target, passphrase)
 
     def decrypt(self, source, target, passphrase=None):
-        if target is not None and os.path.isfile(target):
+        if does_file_exist(target):
             if input(f"Target file already exist, do you want to overwrite? [yN] ").lower() != 'y':
                 return
 
@@ -148,7 +148,7 @@ class GPKI:
         self.__git.push(branch, message)
 
     def export_keys(self, names, target_file, mode=None):
-        if target_file is not None and os.path.isfile(target_file):
+        if does_file_exist(target_file):
             if not mode:
                 choices = ['append', 'cancel', 'overwrite']
                 mode = iterfzf.iterfzf(choices, prompt=f"Output file: {target_file} already exists, select: <append> to add keys to the file, <overwrite> to remove existing file, or <cancel> to abort")
@@ -173,64 +173,72 @@ class GPKI:
             file.write(key)
 
     def __import_key(self, path):
-        successfully_imported = []
-        do_revert = False
-        keys_from_file = list(self.__gpg.scan(path))
-        if keys_from_file:
-            print(f"File {path} contains:")
-            for key in keys_from_file:
-                print(f"{key.fingerprint} key of {key.name} valid between {key.created_on} and {key.expires_on}")
-            if input("is that OK? [yN] ").lower() != 'y':
-                return []
-        else:
+        keys_from_file = self.__gpg.scan(path)
+        if not keys_from_file:
             print(f"File {path} does not contain any key, aborting.")
+            return []
+        print(f"File {path} contains:")
+        for key in keys_from_file:
+            print(f"{key.fingerprint} key of {key.name} valid between {key.created_on} and {key.expires_on}")
+        if input("is that OK? [yN] ").lower() != 'y':
             return []
 
         with open(path, 'rb') as file:
             imported = self.__gpg.import_public_key(file.read())
 
-        for key_status in imported:
-            fingerprint = key_status["fingerprint"].lower()
+        successfully_imported_keys, is_import_successful = self.__get_successfully_imported_keys_and_status(imported)
+        self.__print_import_summary(keys_from_file, imported)
+
+        if not is_import_successful:
+            print("\nThere were errors while importing keys, reverting changes.")
+            self.remove_keys([key['fingerprint'] for key in successfully_imported_keys])
+            self.__load_keys_from_git(successfully_imported_keys)
+            return []
+
+        return list(map(lambda x: x["fingerprint"].lower(), successfully_imported_keys))
+
+    @staticmethod
+    def __print_import_summary(keys, imported_status):
+        key_statuses = list(zip(keys, imported_status))
+        succeded = [item for item in key_statuses if item[1]['ok'] == '1']
+        unchanged = [item for item in key_statuses if item[1]['ok'] == '0' and item[1]['text'].endswith("Not actually changed\n")]
+        failed = [key for key in key_statuses if key not in succeded and key not in unchanged]
+        print("Import Summary:")
+        if failed:
+            print("\nFailed:")
+            for fail in failed:
+                print(f"{fail[1]['fingerprint']}, reason:  {fail[1]['text'].replace('Not actually changed', '').strip()}")
+        if unchanged:
+            print("\nUnchanged:")
+            for unch in unchanged:
+                print(format_key(unch[0]))
+        if succeded:
+            print("\nSucceded:")
+            for succ in succeded:
+                print(format_key(succ[0]))
+        print('\n')
+
+    @staticmethod
+    def __get_successfully_imported_keys_and_status(imported_keys):
+        import_successful = True
+        successfully_imported = []
+        for key_status in imported_keys:
             reason = key_status["text"]
             if key_status["ok"] == '0':
-                print(f"Failed to import {fingerprint} due to: {reason}")
                 if reason == 'Not actually changed\n':
                     continue
-                do_revert = True
+                import_successful = False
             else:
                 successfully_imported.append(key_status)
+        return successfully_imported, import_successful
 
-        if do_revert:
-            print("Something went wrong during import, reverting changes")
-            self.remove_keys([key['fingerprint'] for key in successfully_imported])
-            self.__load_keys_from_git(successfully_imported)
-            return []
-
-        if successfully_imported:
-            for key in successfully_imported:
-                print(f'Imported: {key["fingerprint"].lower()}. {key["text"]}')
-
-            return list(map(lambda x: x["fingerprint"].lower(), successfully_imported)) if successfully_imported else []
-        else:
-            print(f"None the keys from file {path} was added.")
-            return []
-
-    def __load_keys_from_git(self, changed_keys):
-        local_branches = self.__git.get_local_branches()
-        fingerprint_list = [key['fingerprint'].lower() for key in changed_keys]
+    def __load_keys_from_git(self, key_list):
+        fingerprint_list = [key['fingerprint'].lower() for key in key_list]
         for fprint in fingerprint_list:
-            for branch in local_branches:
-                if fprint in branch:
-                    self.__git.checkout(branch)
-                    path = os.path.join(self.__file_repository, f"identities/{branch.replace('/', '/$')}")
-                    try:
-                        with open(path, "rb") as file:
-                            imported = self.__gpg.import_public_key(file.read())
-                    except FileNotFoundError:
-                        pass  # entirely new key, not present in git yet, already deleted from keychain
-                    self.__git.checkout('-')
-                    if imported[0]['ok'] == '0':
-                        print("Could not revert, ")  # may happen when we have private key also added (from `generate identity`)
+            for file in get_file_list(self.__file_repository):
+                if file.endswith(fprint):
+                    with open(file, "rb") as f:
+                        self.__gpg.import_public_key(f.read())
 
     def remove_keys(self, fingerprint_list):
         for fingerprint in fingerprint_list:
