@@ -403,7 +403,7 @@ def launch(parsed_cli):
 def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
-    parsed_cli = cli_parser.parse_args(['import', '-i', 'exp_keys_double.txt'])
+    parsed_cli = cli_parser.parse_args(args)
     launch(parsed_cli)
 
 
