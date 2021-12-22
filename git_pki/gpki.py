@@ -194,13 +194,12 @@ class GPKI:
 
         if not is_import_successful:
             print("\nThere were errors while importing keys, reverting changes.")
-            for imported_key in successfully_imported_keys:
-                imported_key['name'] = [key.name for key in keys_from_file if key.fingerprint == imported_key['fingerprint'].lower()][0]
-            self.remove_keys([key['fingerprint'] for key in successfully_imported_keys])
-            self.__load_keys_from_git(successfully_imported_keys)
+            self.remove_keys(successfully_imported_keys)
+            keys_to_load = {key for key in keys_from_file if key.fingerprint in successfully_imported_keys}
+            self.__load_keys_from_git(keys_to_load)
             return []
 
-        return list(map(lambda x: x["fingerprint"].lower(), successfully_imported_keys))
+        return successfully_imported_keys
 
     @staticmethod
     def __print_import_summary(keys, imported_status):
@@ -234,11 +233,11 @@ class GPKI:
                     continue
                 import_successful = False
             else:
-                successfully_imported.append(key_status)
+                successfully_imported.append(key_status['fingerprint'].lower())
         return successfully_imported, import_successful
 
     def __load_keys_from_git(self, key_list):
-        backup_files = [self.__git.path_to(f"identity/{key['name']}/${key['fingerprint'].lower()}") for key in key_list]
+        backup_files = [self.__git.path_to(f"identity/{key.name}/${key.fingerprint}") for key in key_list]
         for file in backup_files:
             if file_exists(file):
                 with open(file, "rb") as f:
@@ -273,7 +272,7 @@ class GPKI:
                     removed = self.__git.path_to(change.path)
                     added = reviewed.path_to(change.path)
                     return KeyChange(added, removed)
-                # TODO (#31): also compare file name with its fingerprint (extract to method)
+            # TODO (#31): also compare file name with its fingerprint (extract to method)
             for x in map(map_change, changes):
                 print(x)
             # TODO (#32):  accept / reject (also confirm)
