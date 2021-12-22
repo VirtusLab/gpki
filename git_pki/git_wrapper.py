@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import List
 
 from git_pki.custom_types import FileChange, Request
-from git_pki.utils import get_file_list, mkdir, shell
+from git_pki.utils import mkdir, shell
 
 
 class Git:
@@ -11,7 +11,6 @@ class Git:
         self.root_dir = root_dir
         self.identity_dir = f"{root_dir}/identities"
         self.key_dir = f"{root_dir}/keys"
-        self.__backup_files_cached = []
 
     def update(self, listener) -> List:
         if Path(f"{self.root_dir}/.git").is_dir():
@@ -88,10 +87,3 @@ class Git:
 
     def path_to(self, path):
         return Path(f"{self.root_dir}/{path}")
-
-    def get_public_key_file_path(self, fingerprint):
-        if not self.__backup_files_cached:
-            self.__backup_files_cached = get_file_list(self.root_dir)
-        for file in self.__backup_files_cached:
-            if file.endswith(fingerprint):
-                return file

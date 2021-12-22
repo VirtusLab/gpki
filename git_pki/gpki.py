@@ -13,7 +13,7 @@ from git_pki.custom_types import KeyChange
 from git_pki.exceptions import Git_PKI_Exception
 from git_pki.git_wrapper import Git
 from git_pki.gpg_wrapper import GnuPGHandler
-from git_pki.utils import file_exists, format_key, get_file_list, mkdir, read_multiline_string
+from git_pki.utils import file_exists, format_key, mkdir, read_multiline_string
 from git_pki import gpg_wrapper
 
 
@@ -194,6 +194,8 @@ class GPKI:
 
         if not is_import_successful:
             print("\nThere were errors while importing keys, reverting changes.")
+            for imported_key in successfully_imported_keys:
+                imported_key['name'] = [key.name for key in keys_from_file if key.fingerprint == imported_key['fingerprint'].lower()][0]
             self.remove_keys([key['fingerprint'] for key in successfully_imported_keys])
             self.__load_keys_from_git(successfully_imported_keys)
             return []
@@ -236,10 +238,9 @@ class GPKI:
         return successfully_imported, import_successful
 
     def __load_keys_from_git(self, key_list):
-        fingerprint_list = [key['fingerprint'].lower() for key in key_list]
-        backup_files = [self.__git.get_public_key_file_path(fingerprint) for fingerprint in fingerprint_list]
+        backup_files = [self.__git.path_to(f"identity/{key['name']}/${key['fingerprint'].lower()}") for key in key_list]
         for file in backup_files:
-            if file:
+            if file_exists(file):
                 with open(file, "rb") as f:
                     self.__gpg.import_public_key(f.read())
 
@@ -402,7 +403,7 @@ def launch(parsed_cli):
 def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
-    parsed_cli = cli_parser.parse_args(args)
+    parsed_cli = cli_parser.parse_args(['import', '-i', 'exp_keys_double.txt'])
     launch(parsed_cli)
 
 

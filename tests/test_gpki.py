@@ -206,10 +206,3 @@ class GitPKI_Tester(TestCase):
                           '5ec643aba5e71827805eff7b297226aeb797e70c 2021-12-20 2022-06-18 p')
 
         self.assertIn(desired_output, raw_output)
-
-        # expired key in file
-        with patch('builtins.input', return_value='y') as _:  # To confirm that file contains proper keys
-            with StringIO() as out:
-                with redirect_stdout(out):
-                    gpki.import_keys([test_dir.replace('test_gpki.py', 'test_keys_input_expired.txt')])
-                raw_output = out.getvalue()
