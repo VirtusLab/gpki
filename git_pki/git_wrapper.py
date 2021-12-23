@@ -42,13 +42,25 @@ class Git:
             for path in os.listdir(self.key_dir):
                 listener.key_added(path)
 
-    def push(self, branch, message):
+    def push_identity(self, branch, message):
         # TODO (#13): recover on failure
         shell(self.root_dir, f"git checkout -b {branch}")
         shell(self.root_dir, "git add -A")
         shell(self.root_dir, f"git commit -m '{message}'")
+        self.push(branch)
+        self.checkout('-')
+
+    def push(self, branch):
         shell(self.root_dir, f"git push origin {branch}")
-        shell(self.root_dir, "git checkout -")
+
+    def pull(self, branch):
+        shell(self.root_dir, f"git pull origin {branch}")
+
+    def merge(self, branch):
+        shell(self.root_dir, f"git merge {branch}")
+
+    def fetch(self, prune=False):
+        shell(self.root_dir, f"git fetch origin {'--prune' if prune else ''}")
 
     def list_branches_unmerged_to_remote_counterpart_of(self, branch):
         raw = shell(self.root_dir, f"git branch -a --no-merged origin/{branch}").splitlines()
@@ -61,6 +73,9 @@ class Git:
 
     def checkout(self, branch_name):
         shell(self.root_dir, f"git checkout {branch_name}")
+
+    def remove_branch(self, branch):
+        shell(self.root_dir, f"git branch -D {branch}")
 
     def file_diff(self, branch):
         raw = shell(self.root_dir, f'git diff --name-status HEAD.."{branch}" | sort').splitlines()

@@ -125,4 +125,7 @@ class GnuPGHandler:
 
     @staticmethod
     def __key_parse_date(key, field):
-        return datetime.fromtimestamp(int(key[field])).strftime("%Y-%m-%d")
+        try:
+            return datetime.fromtimestamp(int(key[field])).strftime("%Y-%m-%d")
+        except ValueError:
+            return datetime.strptime('2050-01-01', "%Y-%m-%d")  # in case there is no expiration date

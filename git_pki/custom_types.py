@@ -1,10 +1,21 @@
 from collections import namedtuple
 from typing import NewType
 
+new_line = '\n '
 
 ShellCommand = NewType("ShellCommand", str)
 
 Request = namedtuple('Request', ["branch", "title"])
 FileChange = namedtuple('FileChange', ["op", "path"])
-KeyChange = namedtuple('KeyChange', ["added", "removed"])
+#KeyChange = namedtuple('KeyChange', ["added", "removed"])
 Key = namedtuple('Key', ["name", "email", "description", "fingerprint", "created_on", "expires_on"])
+
+
+class KeyChange:
+    def __init__(self, added, removed):
+        self.added = added
+        self.removed = removed
+
+    def __str__(self):
+        return (f"Added:\n {new_line.join(str(item) for item in self.added)}\n" if self.added else ""
+                f"Removed:\n {new_line.join(str(item) for item in self.removed)}\n" if self.removed else "")

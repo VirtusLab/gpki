@@ -6,7 +6,9 @@ import tempfile
 
 import getpass
 import iterfzf
+from datetime import datetime
 from pathlib import Path
+
 
 from git_pki import __version__
 from git_pki.custom_types import KeyChange
@@ -65,7 +67,7 @@ class GPKI:
         key = self.__gpg.export_public_key(name)
         file = Path(f"{self.__git.identity_dir}/{name}/${fingerprint}")
         self.__export_key(key, Path(file))
-        self.__git.push(f"{name}/{fingerprint}", f"Publish key {name}/{fingerprint}")
+        self.__git.push_identity(f"{name}/{fingerprint}", f"Publish key {name}/{fingerprint}")
         print(key)
         # TODO (#24): maybe find a way to revert changes if PR gets rejected ?
         #  fetch --prune, then check which branch is present locally and not on remote, then remove keys from selected branches
@@ -145,7 +147,7 @@ class GPKI:
             return
         branch = input("Specify branch name: ").replace(" ", "_")
         message = input("Specify commit title: ")
-        self.__git.push(branch, message)
+        self.__git.push_identity(branch, message)
 
     def export_keys(self, names, target_file, mode=None):
         if file_exists(target_file):
@@ -248,6 +250,20 @@ class GPKI:
             self.__gpg.remove_public_key(fingerprint)
 
     def review_requests(self):
+        def map_change(change):
+            if change.op == 'A':
+                path = reviewed.path_to(change.path)
+                return KeyChange(added=list(self.__gpg.scan(path)), removed=[])
+            if change.op == 'R':
+                path = self.__git.path_to(change.path)
+                return KeyChange(added=[], removed=list(self.__gpg.scan(path)))
+            if change.op == 'M':
+                removed = self.__git.path_to(change.path)
+                added = reviewed.path_to(change.path)
+                return KeyChange(added, removed)
+        self.__git.fetch()
+        self.__git.pull('master')
+
         unmerged = list(self.__git.list_branches_unmerged_to_remote_counterpart_of(self.__git.current_branch()))
         if not unmerged:
             return
@@ -256,29 +272,54 @@ class GPKI:
 
         selected = int(input(f"Select request to review (0-{len(unmerged)}): "))
         request = unmerged[selected]  # TODO (#29): verify if key added in PR is valid, extract fingerprint from branch_name
+        request_fingerprint = request.branch.split('/')[-1]
+        request_name = request.branch.split('/')[-2]
+        file_path = self.__git.path_to(f'identities/{request_name}/${request_fingerprint}')
+        keys_from_file = self.__gpg.scan(file_path)
+
+        try:
+            self.__git.checkout(request.branch)
+            keys_from_file = self.__gpg.scan(file_path)
+            match = self.does_fingerprint_match_file(file_path)
+        finally:
+            self.__git.checkout('master')
+        if not match:
+            print('File name and fingerprint are no equal.')
+            return
+
 
         print("Requested changes:")
-        changes = self.__git.file_diff(request.branch)
+        changes = list(self.__git.file_diff(request.branch))
         reviewed = self.__git.open_worktree(self.__review_dir, request.branch)
         try:   # TODO (#30): Check if Try still needed after implementation
-            def map_change(change):
-                if change.op == 'A':
-                    path = reviewed.path_to(change.path)
-                    return KeyChange(added=list(self.__gpg.scan(path)), removed=[])
-                if change.op == 'R':
-                    path = self.__git.path_to(change.path)
-                    return KeyChange(added=[], removed=list(self.__gpg.scan(path)))
-                if change.op == 'M':
-                    removed = self.__git.path_to(change.path)
-                    added = reviewed.path_to(change.path)
-                    return KeyChange(added, removed)
             # TODO (#31): also compare file name with its fingerprint (extract to method)
             for x in map(map_change, changes):
-                print(x)
-            # TODO (#32):  accept / reject (also confirm)
-            #  ask if accept/reject, accept => merge and push, reject => ask to remove branch
+                if x:
+                    print(x)
         finally:
             self.__git.close_worktree(request.branch)
+
+        msg = 'Approve this changes? Answer y to merge changes to master or N to reject changes.'
+        if input(msg).lower() != 'y':
+            if input(f"Delete branch {request.branch} [yN] ?").lower() == 'y':
+                self.__git.checkout('master')
+                self.__git.remove_branch(request.branch)  # remove rather from remote
+        else:
+            print('Merging changes into master...')
+            self.__git.checkout('master')
+            self.__git.merge(request.branch)
+            self.__git.push('master')
+
+    def is_key_valid(self, key):
+        if not key:
+            return False
+        return datetime.now() < datetime.strptime(key.expires_on, "%Y-%m-%d")
+
+    def does_fingerprint_match_file(self, keys_list):
+        for key in keys_list:
+            if str(path).endswith(key.fingerprint) and self.is_key_valid(key):
+                return True
+        return False
 
 
 def create_gpki_parser():
@@ -402,7 +443,7 @@ def launch(parsed_cli):
 def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
-    parsed_cli = cli_parser.parse_args(args)
+    parsed_cli = cli_parser.parse_args(['review'])
     launch(parsed_cli)
 
 
