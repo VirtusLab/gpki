@@ -11,6 +11,7 @@ from unittest import TestCase
 from unittest.mock import patch
 
 from git_pki.gpki import GPKI
+from git_pki.git_wrapper import Git
 from git_pki.utils import shell
 
 
@@ -55,6 +56,10 @@ class GitRepositorySandbox:
         with os.popen("git symbolic-ref -q --short HEAD") as git_call:
             branch = git_call.read()
         self.execute(f"git push -u origin {branch}")
+        return self
+
+    def check_out(self, branch: str):
+        self.execute(f"git checkout -q {branch}")
         return self
 
 
@@ -206,3 +211,80 @@ class GitPKI_Tester(TestCase):
                           '5ec643aba5e71827805eff7b297226aeb797e70c 2021-12-20 2022-06-18 p')
 
         self.assertIn(desired_output, raw_output)
+
+    def test_accept_pr(self):
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            test_dir = GitPKI_Tester.get_temp_directory()
+            gpki = GPKI(test_dir)
+            git = Git(test_dir + '/vault/public')
+            gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
+
+        unmerged_branch = list(git.list_branches_unmerged_to_remote_counterpart_of('master'))[0].branch
+        request_fingerprint_file_name = "$" + unmerged_branch.split('/')[-1]
+        with patch('builtins.input', side_effect=[0, 'y']) as _:  # 0 to take first pr and 'y' to approve it
+            gpki.review_requests()
+
+        # now check if master has desired key
+        self.repo_sandbox.check_out('master')
+        files = []
+        for root, dirs, files_in_dir in os.walk(test_dir + '/vault/public/identities'):
+            for file in files_in_dir:
+                files.append(file)
+
+        self.assertIn(request_fingerprint_file_name, files)
+
+        # check if accepted branch was removed from remote
+        remote_branches = shell(os.path.join(test_dir, 'vault', 'public'), 'git branch -r').strip().split(' ')
+        self.assertNotIn('origin/' + unmerged_branch, remote_branches)
+
+    def test_reject_pr_without_branch_deletion(self):
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            test_dir = GitPKI_Tester.get_temp_directory()
+            gpki = GPKI(test_dir)
+            git = Git(test_dir + '/vault/public')
+            gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
+
+
+        unmerged_branch = list(git.list_branches_unmerged_to_remote_counterpart_of('master'))[0].branch
+        request_fingerprint_file_name = "$" + unmerged_branch.split('/')[-1]
+        with patch('builtins.input', side_effect=[0, 'n', 'n']) as _:  # 0 to take first pr and 'n' to reject it, second 'n' to not delete branch
+            gpki.review_requests()
+
+        # make sure that master does not have key from pr
+        self.repo_sandbox.check_out('master')
+        files = []
+        for root, dirs, files_in_dir in os.walk(test_dir + '/vault/public/identities'):
+            for file in files_in_dir:
+                files.append(file)
+
+        self.assertNotIn(request_fingerprint_file_name, files)
+
+        # pr branch should be still available on remote
+        remote_branches = shell(os.path.join(test_dir, 'vault', 'public'), 'git branch -r').strip().split(' ')
+        self.assertIn('origin/' + unmerged_branch, remote_branches)
+
+    def test_reject_pr_with_branch_deletion(self):
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            test_dir = GitPKI_Tester.get_temp_directory()
+            gpki = GPKI(test_dir)
+            git = Git(test_dir + '/vault/public')
+            gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
+
+
+        unmerged_branch = list(git.list_branches_unmerged_to_remote_counterpart_of('master'))[0].branch
+        request_fingerprint_file_name = "$" + unmerged_branch.split('/')[-1]
+        with patch('builtins.input', side_effect=[0, 'n', 'y']) as _:  # 0 to take first pr and 'n' to reject it, second 'y' to delete branch
+            gpki.review_requests()
+
+        # make sure that master does not have key from pr
+        self.repo_sandbox.check_out('master')
+        files = []
+        for root, dirs, files_in_dir in os.walk(test_dir + '/vault/public/identities'):
+            for file in files_in_dir:
+                files.append(file)
+
+        self.assertNotIn(request_fingerprint_file_name, files)
+
+        # pr branch should be still available on remote
+        remote_branches = shell(os.path.join(test_dir, 'vault', 'public'), 'git branch -r').strip().split(' ')
+        self.assertNotIn('origin/' + unmerged_branch, remote_branches)

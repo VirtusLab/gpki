@@ -261,6 +261,7 @@ class GPKI:
                 removed = self.__git.path_to(change.path)
                 added = reviewed.path_to(change.path)
                 return KeyChange(added, removed)
+
         self.__git.fetch()
         self.__git.pull('master')
 
@@ -270,29 +271,29 @@ class GPKI:
         for i, request in enumerate(unmerged):
             print(f"{i}) {request.title}")
 
-        selected = int(input(f"Select request to review (0-{len(unmerged)}): "))
-        request = unmerged[selected]  # TODO (#29): verify if key added in PR is valid, extract fingerprint from branch_name
+        selected = int(input(f"Select request to review (0-{len(unmerged)-1}): "))
+        request = unmerged[selected]
         request_fingerprint = request.branch.split('/')[-1]
         request_name = request.branch.split('/')[-2]
         file_path = self.__git.path_to(f'identities/{request_name}/${request_fingerprint}')
-        keys_from_file = self.__gpg.scan(file_path)
 
         try:
             self.__git.checkout(request.branch)
-            keys_from_file = self.__gpg.scan(file_path)
-            match = self.does_fingerprint_match_file(file_path)
+            # check if there is at least one valid key in request
+            if not self.is_any_key_valid(file_path):
+                print(f"The file {file_path} does not contain any valid key, aborting.")
+                return
+            # check if filename matches fingerprint from file
+            if not self.does_fingerprint_match_file(file_path):
+                print('File name and fingerprint are no equal.')
+                return
         finally:
             self.__git.checkout('master')
-        if not match:
-            print('File name and fingerprint are no equal.')
-            return
-
 
         print("Requested changes:")
         changes = list(self.__git.file_diff(request.branch))
         reviewed = self.__git.open_worktree(self.__review_dir, request.branch)
-        try:   # TODO (#30): Check if Try still needed after implementation
-            # TODO (#31): also compare file name with its fingerprint (extract to method)
+        try:
             for x in map(map_change, changes):
                 if x:
                     print(x)
@@ -301,23 +302,32 @@ class GPKI:
 
         msg = 'Approve this changes? Answer y to merge changes to master or N to reject changes.'
         if input(msg).lower() != 'y':
-            if input(f"Delete branch {request.branch} [yN] ?").lower() == 'y':
+            if input(f"\nDelete branch {request.branch} [yN] ?").lower() == 'y':
                 self.__git.checkout('master')
-                self.__git.remove_branch(request.branch)  # remove rather from remote
+                self.__git.remove_remote_branch(request.branch.replace('remotes/origin/', ''))
+                print(f'\nSuccessfully deleted branch {request.branch}')
         else:
             print('Merging changes into master...')
             self.__git.checkout('master')
             self.__git.merge(request.branch)
             self.__git.push('master')
+            self.__git.remove_remote_branch(request.branch)
+            print("Done.")
 
     def is_key_valid(self, key):
         if not key:
             return False
         return datetime.now() < datetime.strptime(key.expires_on, "%Y-%m-%d")
 
-    def does_fingerprint_match_file(self, keys_list):
-        for key in keys_list:
-            if str(path).endswith(key.fingerprint) and self.is_key_valid(key):
+    def is_any_key_valid(self, path):
+        for key in self.__gpg.scan(path):
+            if self.is_key_valid(key):
+                return True
+        return False
+
+    def does_fingerprint_match_file(self, path):
+        for key in self.__gpg.scan(path):
+            if str(path).endswith(key.fingerprint):
                 return True
         return False
 

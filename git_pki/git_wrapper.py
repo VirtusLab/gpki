@@ -74,8 +74,11 @@ class Git:
     def checkout(self, branch_name):
         shell(self.root_dir, f"git checkout {branch_name}")
 
-    def remove_branch(self, branch):
+    def remove_local_branch(self, branch):
         shell(self.root_dir, f"git branch -D {branch}")
+
+    def remove_remote_branch(self, branch):
+        shell(self.root_dir, f"git push origin --delete {branch}")
 
     def file_diff(self, branch):
         raw = shell(self.root_dir, f'git diff --name-status HEAD.."{branch}" | sort').splitlines()
