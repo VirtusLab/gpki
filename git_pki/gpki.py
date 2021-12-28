@@ -311,7 +311,7 @@ class GPKI:
             self.__git.checkout('master')
             self.__git.merge(request.branch)
             self.__git.push('master')
-            self.__git.remove_remote_branch(request.branch)
+            self.__git.remove_remote_branch(request.branch.replace('remotes/origin/', ''))
             print("Done.")
 
     def is_key_valid(self, key):
