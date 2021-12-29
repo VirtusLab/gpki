@@ -128,4 +128,4 @@ class GnuPGHandler:
         try:
             return datetime.fromtimestamp(int(key[field])).strftime("%Y-%m-%d")
         except ValueError:
-            return datetime.strptime('2050-01-01', "%Y-%m-%d")  # in case there is no expiration date
+            return None  # in case there is no expiration date

@@ -318,6 +318,8 @@ class GPKI:
     def is_key_expired(self, key):
         if not key:
             return True
+        if not key.expires_on:
+            return True
         return datetime.now() > datetime.strptime(key.expires_on, "%Y-%m-%d")
 
     def is_any_key_valid(self, path):

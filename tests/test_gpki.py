@@ -221,17 +221,19 @@ class GitPKI_Tester(TestCase):
 
         unmerged_branch = list(git.list_branches_unmerged_to_remote_counterpart_of('master'))[0].branch
         request_fingerprint_file_name = "$" + unmerged_branch.split('/')[-1]
+        expected_file_list = [request_fingerprint_file_name]
         with patch('builtins.input', side_effect=[0, 'y']) as _:  # 0 to take first pr and 'y' to approve it
             gpki.review_requests()
 
         # now check if master has desired key
         self.repo_sandbox.check_out('master')
         files = []
-        for root, dirs, files_in_dir in os.walk(test_dir + '/vault/public/identities'):
+        for root, dirs, files_in_dir in os.walk(test_dir + '/vault/public/identities/'):
             for file in files_in_dir:
                 files.append(file)
 
-        self.assertIn(request_fingerprint_file_name, files)
+        self.assertEqual(len(files), 1)
+        self.assertEqual(expected_file_list, files)
 
         # check if accepted branch was removed from remote
         remote_branches = shell(os.path.join(test_dir, 'vault', 'public'), 'git branch -r').strip().split(' ')
@@ -246,7 +248,6 @@ class GitPKI_Tester(TestCase):
 
 
         unmerged_branch = list(git.list_branches_unmerged_to_remote_counterpart_of('master'))[0].branch
-        request_fingerprint_file_name = "$" + unmerged_branch.split('/')[-1]
         with patch('builtins.input', side_effect=[0, 'n', 'n']) as _:  # 0 to take first pr and 'n' to reject it, second 'n' to not delete branch
             gpki.review_requests()
 
@@ -257,7 +258,7 @@ class GitPKI_Tester(TestCase):
             for file in files_in_dir:
                 files.append(file)
 
-        self.assertNotIn(request_fingerprint_file_name, files)
+        self.assertEqual([], files)
 
         # pr branch should be still available on remote
         remote_branches = shell(os.path.join(test_dir, 'vault', 'public'), 'git branch -r').strip().split(' ')
@@ -272,7 +273,6 @@ class GitPKI_Tester(TestCase):
 
 
         unmerged_branch = list(git.list_branches_unmerged_to_remote_counterpart_of('master'))[0].branch
-        request_fingerprint_file_name = "$" + unmerged_branch.split('/')[-1]
         with patch('builtins.input', side_effect=[0, 'n', 'y']) as _:  # 0 to take first pr and 'n' to reject it, second 'y' to delete branch
             gpki.review_requests()
 
@@ -283,7 +283,7 @@ class GitPKI_Tester(TestCase):
             for file in files_in_dir:
                 files.append(file)
 
-        self.assertNotIn(request_fingerprint_file_name, files)
+        self.assertEqual([], files)
 
         # pr branch should be still available on remote
         remote_branches = shell(os.path.join(test_dir, 'vault', 'public'), 'git branch -r').strip().split(' ')
