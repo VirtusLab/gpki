@@ -23,8 +23,8 @@ class GnuPGHandler:
                    Key-Type:	RSA
                    Key-Length: 	3072
                    Name-Real: 	{name}
-                   Name-Email: 	{email}
-                   Name-Comment:{description}
+                   {f'Name-Email: 	{email}' if email else ''}
+                   {f'Name-Comment:{description}' if description else ''}
                    Expire-Date:	6m
                    Passphrase: 	{passphrase if passphrase else getpass("New key passphrase: ")}
                     """
