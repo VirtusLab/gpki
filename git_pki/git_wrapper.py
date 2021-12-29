@@ -118,4 +118,4 @@ class Git:
         return AddIdentityRequest(branch,
                                   name,
                                   fingerprint,
-                                  self.path_to(f'identities/{name}/${fingerprint}'))
+                                  self.path_to(f'identities/{name}/{fingerprint}'))

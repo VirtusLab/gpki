@@ -220,7 +220,7 @@ class GitPKI_Tester(TestCase):
             gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
 
         unmerged_branch = list(git.list_branches_unmerged_to_remote_counterpart_of('master'))[0].branch
-        request_fingerprint_file_name = "$" + unmerged_branch.split('/')[-1]
+        request_fingerprint_file_name = unmerged_branch.split('/')[-1]
         expected_file_list = [request_fingerprint_file_name]
         with patch('builtins.input', side_effect=[0, 'y']) as _:  # 0 to take first pr and 'y' to approve it
             gpki.review_requests()

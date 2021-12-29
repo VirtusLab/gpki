@@ -65,7 +65,7 @@ class GPKI:
             return
 
         key = self.__gpg.export_public_key(name)
-        file = Path(f"{self.__git.identity_dir}/{name}/${fingerprint}")
+        file = Path(f"{self.__git.identity_dir}/{name}/{fingerprint}")
         self.__export_key(key, Path(file))
         self.__git.push_identity(f"{name}/{fingerprint}", f"Publish key {name}/{fingerprint}")
         print(key)
@@ -239,7 +239,7 @@ class GPKI:
         return successfully_imported, import_successful
 
     def __load_keys_from_git(self, key_list):
-        backup_files = [self.__git.path_to(f"identity/{key.name}/${key.fingerprint}") for key in key_list]
+        backup_files = [self.__git.path_to(f"identity/{key.name}/{key.fingerprint}") for key in key_list]
         for file in backup_files:
             if file_exists(file):
                 with open(file, "rb") as f:
