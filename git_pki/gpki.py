@@ -271,65 +271,67 @@ class GPKI:
         for i, request in enumerate(unmerged):
             print(f"{i}) {request.title}")
 
-        selected = int(input(f"Select request to review (0-{len(unmerged)-1}): "))
-        request = unmerged[selected]
-        request_fingerprint = request.branch.split('/')[-1]
-        request_name = request.branch.split('/')[-2]
-        file_path = self.__git.path_to(f'identities/{request_name}/${request_fingerprint}')
+        try:
+            selected = int(input(f"Select request to review (0-{len(unmerged)-1}): "))
+        except ValueError:
+            raise Git_PKI_Exception("Please pass the integer value to select request.")
+
+        identity_request = self.__git.get_add_identity_request(unmerged[selected])
+
+        if not self.__git.is_mergeable_to('master', identity_request.branch.full_name):
+            print("Warning, cannot perform `git merge` automatically")
 
         try:
-            self.__git.checkout(request.branch)
-            # check if there is at least one valid key in request
-            if not self.is_any_key_valid(file_path):
-                print(f"The file {file_path} does not contain any valid key, aborting.")
-                return
+            self.__git.checkout(identity_request.branch.full_name)
             # check if filename matches fingerprint from file
-            if not self.does_fingerprint_match_file(file_path):
+            if not self.does_fingerprint_match_file(identity_request.file):
                 print('File name and fingerprint are no equal.')
+                return
+            # check if there is at least one valid key in request
+            if not self.is_any_key_valid(identity_request.file):
+                print(f"The file {identity_request.file} does not contain any valid key, aborting.")
                 return
         finally:
             self.__git.checkout('master')
 
         print("Requested changes:")
-        changes = list(self.__git.file_diff(request.branch))
-        reviewed = self.__git.open_worktree(self.__review_dir, request.branch)
+        changes = list(self.__git.file_diff(identity_request.branch.full_name))
+        reviewed = self.__git.open_worktree(self.__review_dir, identity_request.branch.full_name)
         try:
             for x in map(map_change, changes):
-                if x:
-                    print(x)
+                print(x)
         finally:
-            self.__git.close_worktree(request.branch)
+            self.__git.close_worktree(identity_request.branch.full_name)
 
-        msg = 'Approve this changes? Answer y to merge changes to master or N to reject changes.'
+        msg = 'Approve this changes? Answer "y" to merge them.'
         if input(msg).lower() != 'y':
-            if input(f"\nDelete branch {request.branch} [yN] ?").lower() == 'y':
-                self.__git.checkout('master')
-                self.__git.remove_remote_branch(request.branch.replace('remotes/origin/', ''))
-                print(f'\nSuccessfully deleted branch {request.branch}')
+            if input(f"\nDelete branch {identity_request.branch} [yN] ?").lower() == 'y':
+                self.__git.remove_remote_branch(identity_request.branch.name)
+                print(f'\nSuccessfully deleted branch {identity_request.branch}')
         else:
             print('Merging changes into master...')
-            self.__git.checkout('master')
-            self.__git.merge(request.branch)
+            self.__git.merge(identity_request.branch.full_name)
             self.__git.push('master')
-            self.__git.remove_remote_branch(request.branch.replace('remotes/origin/', ''))
+            self.__git.remove_remote_branch(identity_request.branch.name)
             print("Done.")
 
-    def is_key_valid(self, key):
+    def is_key_expired(self, key):
         if not key:
-            return False
-        return datetime.now() < datetime.strptime(key.expires_on, "%Y-%m-%d")
+            return True
+        return datetime.now() > datetime.strptime(key.expires_on, "%Y-%m-%d")
 
     def is_any_key_valid(self, path):
         for key in self.__gpg.scan(path):
-            if self.is_key_valid(key):
+            if not self.is_key_expired(key):
                 return True
         return False
 
     def does_fingerprint_match_file(self, path):
-        for key in self.__gpg.scan(path):
-            if str(path).endswith(key.fingerprint):
-                return True
-        return False
+        key = self.__gpg.scan(path)
+        if not key:
+            return False
+        else:
+            return str(path).endswith(key[0].fingerprint)
 
 
 def create_gpki_parser():
@@ -453,7 +455,7 @@ def launch(parsed_cli):
 def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
-    parsed_cli = cli_parser.parse_args(['review'])
+    parsed_cli = cli_parser.parse_args(args)
     launch(parsed_cli)
 
 

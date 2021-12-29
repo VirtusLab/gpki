@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import List
 
-from git_pki.custom_types import FileChange, Request
+from git_pki.custom_types import AddIdentityRequest, Branch, FileChange, PREVIOUS_BRANCH, Request
 from git_pki.utils import mkdir, shell
 
 
@@ -48,7 +48,7 @@ class Git:
         shell(self.root_dir, "git add -A")
         shell(self.root_dir, f"git commit -m '{message}'")
         self.push(branch)
-        self.checkout('-')
+        self.checkout(PREVIOUS_BRANCH)
 
     def push(self, branch):
         shell(self.root_dir, f"git push origin {branch}")
@@ -105,3 +105,17 @@ class Git:
 
     def path_to(self, path):
         return Path(f"{self.root_dir}/{path}")
+
+    def is_mergeable_to(self, first_branch, second_branch):
+        merge_base = shell(self.root_dir, f"git merge-base {second_branch} {first_branch}").strip()
+        output = shell(self.root_dir, f"git merge-tree {merge_base} {first_branch} {second_branch}").strip()
+        return 'changed in both' not in output  # most probably there will be conflict when 'change in both' is present
+
+    def get_add_identity_request(self, request):
+        name = request.branch.split('/')[-2]
+        fingerprint = request.branch.split('/')[-1]
+        branch = Branch('origin', '/'.join([name, fingerprint]), request.branch)
+        return AddIdentityRequest(branch,
+                                  name,
+                                  fingerprint,
+                                  self.path_to(f'identities/{name}/${fingerprint}'))
