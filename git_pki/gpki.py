@@ -250,22 +250,24 @@ class GPKI:
             self.__gpg.remove_public_key(fingerprint)
 
     def review_requests(self):
+        git = self.__git
+
         def map_change(change):
             if change.op == 'A':
                 path = reviewed.path_to(change.path)
                 return KeyChange(added=list(self.__gpg.scan(path)), removed=[])
             if change.op == 'R':
-                path = self.__git.path_to(change.path)
+                path = git.path_to(change.path)
                 return KeyChange(added=[], removed=list(self.__gpg.scan(path)))
             if change.op == 'M':
-                removed = self.__git.path_to(change.path)
+                removed = git.path_to(change.path)
                 added = reviewed.path_to(change.path)
                 return KeyChange(added, removed)
 
-        self.__git.fetch()
-        self.__git.pull('master')
+        git.fetch()
+        git.pull('master')
 
-        unmerged = list(self.__git.list_branches_unmerged_to_remote_counterpart_of(self.__git.current_branch()))
+        unmerged = list(git.list_branches_unmerged_to_remote_counterpart_of(git.current_branch()))
         if not unmerged:
             return
         for i, request in enumerate(unmerged):
@@ -276,13 +278,13 @@ class GPKI:
         except ValueError:
             raise Git_PKI_Exception("Please pass the integer value to select request.")
 
-        identity_request = self.__git.get_add_identity_request(unmerged[selected])
+        identity_request = git.get_add_identity_request(unmerged[selected])
 
-        if not self.__git.is_mergeable_to('master', identity_request.branch.full_name):
+        if not git.is_mergeable_to('master', identity_request.branch.full_name):
             print("Warning, cannot perform `git merge` automatically")
 
         try:
-            self.__git.checkout(identity_request.branch.full_name)
+            git.checkout(identity_request.branch.full_name)
             # check if filename matches fingerprint from file
             if not self.does_fingerprint_match_file(identity_request.file):
                 print('File name and fingerprint are no equal.')
@@ -292,34 +294,34 @@ class GPKI:
                 print(f"The file {identity_request.file} does not contain any valid key, aborting.")
                 return
         finally:
-            self.__git.checkout('master')
+            git.checkout('master')
 
         print("Requested changes:")
-        changes = list(self.__git.file_diff(identity_request.branch.full_name))
-        reviewed = self.__git.open_worktree(self.__review_dir, identity_request.branch.full_name)
+        changes = list(git.file_diff(identity_request.branch.full_name))
+        reviewed = git.open_worktree(self.__review_dir, identity_request.branch.full_name)
         try:
             for x in map(map_change, changes):
                 print(x)
         finally:
-            self.__git.close_worktree(identity_request.branch.full_name)
+            git.close_worktree(identity_request.branch.full_name)
 
         msg = 'Approve this changes? Answer "y" to merge them.'
         if input(msg).lower() != 'y':
             if input(f"\nDelete branch {identity_request.branch} [yN] ?").lower() == 'y':
-                self.__git.remove_remote_branch(identity_request.branch.name)
+                git.remove_remote_branch(identity_request.branch.name)
                 print(f'\nSuccessfully deleted branch {identity_request.branch}')
         else:
             print('Merging changes into master...')
-            self.__git.merge(identity_request.branch.full_name)
-            self.__git.push('master')
-            self.__git.remove_remote_branch(identity_request.branch.name)
+            git.merge(identity_request.branch.full_name)
+            git.push('master')
+            git.remove_remote_branch(identity_request.branch.name)
             print("Done.")
 
     def is_key_expired(self, key):
         if not key:
             return True
-        if not key.expires_on:
-            return True
+        if key.expires_on is None:
+            return False
         return datetime.now() > datetime.strptime(key.expires_on, "%Y-%m-%d")
 
     def is_any_key_valid(self, path):
