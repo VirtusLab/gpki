@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import List
 
-from git_pki.custom_types import AddIdentityRequest, Branch, FileChange, PREVIOUS_BRANCH, Request
+from git_pki.custom_types import AddIdentityRequest, ImportRequest, Branch, FileChange, PREVIOUS_BRANCH, Request
 from git_pki.utils import mkdir, shell
 
 
@@ -42,7 +42,7 @@ class Git:
             for path in os.listdir(self.key_dir):
                 listener.key_added(path)
 
-    def push_identity(self, branch, message):
+    def push_entity(self, branch, message):
         # TODO (#13): recover on failure
         shell(self.root_dir, f"git checkout -b {branch}")
         shell(self.root_dir, "git add -A")
@@ -111,6 +111,12 @@ class Git:
         output = shell(self.root_dir, f"git merge-tree {merge_base} {first_branch} {second_branch}").strip()
         return 'changed in both' not in output  # most probably there will be conflict when 'change in both' is present
 
+    def get_request(self, request):
+        if "import" in request.branch:
+            return self.get_import_request(request)
+        else:
+            return self.get_add_identity_request(request)
+
     def get_add_identity_request(self, request):
         name = request.branch.split('/')[-2]
         fingerprint = request.branch.split('/')[-1]
@@ -119,3 +125,10 @@ class Git:
                                   name,
                                   fingerprint,
                                   self.path_to(f'identities/{name}/{fingerprint}'))
+
+    def get_import_request(self, request):
+        import_hash = request.branch.split('/')[-1]
+        branch = Branch('origin', '/'.join(['import', import_hash]), request.branch)
+        return ImportRequest(branch,
+                             import_hash,
+                             self.path_to(f'identities/import/{import_hash}'))

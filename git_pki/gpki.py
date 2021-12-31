@@ -15,7 +15,7 @@ from git_pki.custom_types import KeyChange
 from git_pki.exceptions import Git_PKI_Exception
 from git_pki.git_wrapper import Git
 from git_pki.gpg_wrapper import GnuPGHandler
-from git_pki.utils import file_exists, format_key, mkdir, read_multiline_string
+from git_pki.utils import file_exists, format_key, mkdir, read_multiline_string, sha1_encode
 from git_pki import gpg_wrapper
 
 
@@ -67,7 +67,7 @@ class GPKI:
         key = self.__gpg.export_public_key(name)
         file = Path(f"{self.__git.identity_dir}/{name}/{fingerprint}")
         self.__export_key(key, Path(file))
-        self.__git.push_identity(f"{name}/{fingerprint}", f"Publish key {name}/{fingerprint}")
+        self.__git.push_entity(f"{name}/{fingerprint}", f"Publish key {name}/{fingerprint}")
         print(key)
         # TODO (#24): maybe find a way to revert changes if PR gets rejected ?
         #  fetch --prune, then check which branch is present locally and not on remote, then remove keys from selected branches
@@ -134,9 +134,11 @@ class GPKI:
                 output.write(data)
             files = [file]
 
+        fingerprints = []
         imported = False
         for file in files:
             for fingerprint in self.__import_key(file):
+                fingerprints.append(fingerprint)
                 name = self.__gpg.public_key_name(fingerprint)
                 file = f"{self.__git.identity_dir}/{name}/{fingerprint}"
                 key = self.__gpg.export_public_key(fingerprint)
@@ -145,9 +147,9 @@ class GPKI:
 
         if not imported:
             return
-        branch = input("Specify branch name: ").replace(" ", "_")
-        message = input("Specify commit title: ")
-        self.__git.push_identity(branch, message)
+        branch_name = f'import/{sha1_encode("".join(fingerprints))}'  # input("Specify branch name: ").replace(" ", "_")
+        message = f"Import keys {', '.join(fingerprints)}"   # input("Specify commit title: ")
+        self.__git.push_entity(branch_name, message)
 
     def export_keys(self, names, target_file, mode=None):
         if file_exists(target_file):
@@ -278,43 +280,41 @@ class GPKI:
         except ValueError:
             raise Git_PKI_Exception("Please pass the integer value to select request.")
 
-        identity_request = git.get_add_identity_request(unmerged[selected])
-
-        if not git.is_mergeable_to('master', identity_request.branch.full_name):
+        request = git.get_request(unmerged[selected])
+        if not git.is_mergeable_to('master', request.branch.full_name):
             print("Warning, cannot perform `git merge` automatically")
 
         try:
-            git.checkout(identity_request.branch.full_name)
+            git.checkout(request.branch.full_name)
             # check if filename matches fingerprint from file
-            if not self.does_fingerprint_match_file(identity_request.file):
-                print('File name and fingerprint are no equal.')
-                return
+            # if not self.does_fingerprint_match_file(request.file):
+            #     print('File name and fingerprint are no equal.')
+            #     return
             # check if there is at least one valid key in request
-            if not self.is_any_key_valid(identity_request.file):
-                print(f"The file {identity_request.file} does not contain any valid key, aborting.")
-                return
+            #
+            pass
         finally:
             git.checkout('master')
 
         print("Requested changes:")
-        changes = list(git.file_diff(identity_request.branch.full_name))
-        reviewed = git.open_worktree(self.__review_dir, identity_request.branch.full_name)
+        changes = list(git.file_diff(request.branch.full_name))
+        reviewed = git.open_worktree(self.__review_dir, request.branch.full_name)
         try:
             for x in map(map_change, changes):
                 print(x)
         finally:
-            git.close_worktree(identity_request.branch.full_name)
+            git.close_worktree(request.branch.full_name)
 
         msg = 'Approve this changes? Answer "y" to merge them.'
         if input(msg).lower() != 'y':
-            if input(f"\nDelete branch {identity_request.branch} [yN] ?").lower() == 'y':
-                git.remove_remote_branch(identity_request.branch.name)
-                print(f'\nSuccessfully deleted branch {identity_request.branch}')
+            if input(f"\nDelete branch {request.branch} [yN] ?").lower() == 'y':
+                git.remove_remote_branch(request.branch.name)
+                print(f'\nSuccessfully deleted branch {request.branch}')
         else:
             print('Merging changes into master...')
-            git.merge(identity_request.branch.full_name)
+            git.merge(request.branch.full_name)
             git.push('master')
-            git.remove_remote_branch(identity_request.branch.name)
+            git.remove_remote_branch(request.branch.name)
             print("Done.")
 
     def is_key_expired(self, key):
@@ -459,7 +459,7 @@ def launch(parsed_cli):
 def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
-    parsed_cli = cli_parser.parse_args(args)
+    parsed_cli = cli_parser.parse_args(["review"])
     launch(parsed_cli)
 
 

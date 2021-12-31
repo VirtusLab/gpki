@@ -3,6 +3,9 @@ import os
 import subprocess
 import sys
 
+from hashlib import sha1
+from time import time_ns
+
 from git_pki.custom_types import ShellCommand
 
 
@@ -40,3 +43,8 @@ def shell(cwd, command: ShellCommand) -> str:
 
 def format_key(key):
     return f"{key.fingerprint} {key.created_on} {key.expires_on} {key.name} {key.email} {key.description}"
+
+
+def sha1_encode(msg):
+    msg = msg + str(time_ns())
+    return sha1(msg.encode()).hexdigest()
