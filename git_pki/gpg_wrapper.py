@@ -115,7 +115,7 @@ class GnuPGHandler:
 
     def parse_key(self, raw_key):
         uid = raw_key["uids"][0]
-        name = uid[0]
+        name = uid.split()[0]
         email = uid[1][1:-1]
         description = uid[2][1:-1]
         fingerprint = raw_key["fingerprint"].lower()

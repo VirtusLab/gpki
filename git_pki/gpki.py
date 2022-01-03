@@ -11,7 +11,7 @@ from pathlib import Path
 
 
 from git_pki import __version__
-from git_pki.custom_types import KeyChange
+from git_pki.custom_types import KeyChange, ImportRequest
 from git_pki.exceptions import Git_PKI_Exception
 from git_pki.git_wrapper import Git
 from git_pki.gpg_wrapper import GnuPGHandler
@@ -284,24 +284,14 @@ class GPKI:
         if not git.is_mergeable_to('master', request.branch.full_name):
             print("Warning, cannot perform `git merge` automatically")
 
-        try:
-            git.checkout(request.branch.full_name)
-            # check if filename matches fingerprint from file
-            # if not self.does_fingerprint_match_file(request.file):
-            #     print('File name and fingerprint are no equal.')
-            #     return
-            # check if there is at least one valid key in request
-            #
-            pass
-        finally:
-            git.checkout('master')
-
-        print("Requested changes:")
         changes = list(git.file_diff(request.branch.full_name))
         reviewed = git.open_worktree(self.__review_dir, request.branch.full_name)
         try:
-            for x in map(map_change, changes):
-                print(x)
+            for change in map(map_change, changes):
+                self.__run_checks(change, request, reviewed)
+            print("Requested changes:")
+            for change in map(map_change, changes):
+                print(change)
         finally:
             git.close_worktree(request.branch.full_name)
 
@@ -336,6 +326,19 @@ class GPKI:
             return False
         else:
             return str(path).endswith(key[0].fingerprint)
+
+    def __run_checks(self, change, request, reviewed):
+        if isinstance(request, ImportRequest):
+            name = change.added[0].name if change.added else change.removed[0].name
+            fingerprint = change.added[0].fingerprint if change.added else change.removed[0].fingerprint
+        else:
+            name = request.name
+            fingerprint = request.fingerprint
+        filepath = reviewed.path_to(os.path.join('identities', name, fingerprint))
+        if not self.does_fingerprint_match_file(filepath):
+            raise Git_PKI_Exception('File name and fingerprint are no equal.')
+        if not self.is_any_key_valid(filepath):
+            raise Git_PKI_Exception(f"The file {filepath} does not contain any valid key, aborting.")
 
 
 def create_gpki_parser():
@@ -430,7 +433,6 @@ def launch(parsed_cli):
     gpg_wrapper.verbose = parsed_cli.verbose
 
     gpki = GPKI("/tmp/foobarbaz")
-
     cmd = parsed_cli.command
 
     if cmd == 'decrypt':
@@ -459,7 +461,7 @@ def launch(parsed_cli):
 def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
-    parsed_cli = cli_parser.parse_args(["review"])
+    parsed_cli = cli_parser.parse_args(args)
     launch(parsed_cli)
 
 

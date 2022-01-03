@@ -189,11 +189,11 @@ class GitPKI_Tester(TestCase):
 
         desired_output = ('\nImport Summary:\n\n'
                           'Unchanged:\n'
-                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 p  \n\n'  
+                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 pioter  \n\n'  
                           'Succeded:\n'
-                          'fe0f710be0fbde4ac0384bf4c9a8dfbd8930675c 2021-12-13 2022-06-11 p  \n'  
-                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 p  \n'
-                          '5ec643aba5e71827805eff7b297226aeb797e70c 2021-12-20 2022-06-18 p')
+                          'fe0f710be0fbde4ac0384bf4c9a8dfbd8930675c 2021-12-13 2022-06-11 pio  \n'  
+                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 pioter  \n'
+                          '5ec643aba5e71827805eff7b297226aeb797e70c 2021-12-20 2022-06-18 p3')
 
         self.assertIn(desired_output, raw_output)
 
@@ -205,10 +205,10 @@ class GitPKI_Tester(TestCase):
 
         desired_output = ('\nImport Summary:\n\n'
                           'Unchanged:\n'
-                          'fe0f710be0fbde4ac0384bf4c9a8dfbd8930675c 2021-12-13 2022-06-11 p  \n'
-                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 p  \n'
-                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 p  \n'
-                          '5ec643aba5e71827805eff7b297226aeb797e70c 2021-12-20 2022-06-18 p')
+                          'fe0f710be0fbde4ac0384bf4c9a8dfbd8930675c 2021-12-13 2022-06-11 pio  \n'
+                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 pioter  \n'
+                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 pioter  \n'
+                          '5ec643aba5e71827805eff7b297226aeb797e70c 2021-12-20 2022-06-18 p3')
 
         self.assertIn(desired_output, raw_output)
 
@@ -286,5 +286,70 @@ class GitPKI_Tester(TestCase):
         self.assertEqual([], files)
 
         # pr branch should be still available on remote
+        remote_branches = shell(os.path.join(test_dir, 'vault', 'public'), 'git branch -r').strip().split(' ')
+        self.assertNotIn('origin/' + unmerged_branch, remote_branches)
+
+    def test_accept_pr_from_imported_keys(self):
+        root_dir = os.path.abspath(__file__)
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            test_dir = GitPKI_Tester.get_temp_directory()
+            gpki = GPKI(test_dir)
+            git = Git(test_dir + '/vault/public')
+
+        with patch('builtins.input', return_value='y') as _:  # To confirm that file contains proper keys
+            with StringIO() as out:
+                with redirect_stdout(out):
+                    gpki.import_keys([root_dir.replace('test_gpki.py', 'tester_exported.txt')])
+                raw_output = out.getvalue()
+
+        unmerged_branch = list(git.list_branches_unmerged_to_remote_counterpart_of('master'))[0].branch
+        expected_file_list = ['5e42d830dcf16917dc7179bd196d044b1fdcc3e6']
+        with patch('builtins.input', side_effect=[0, 'y']) as _:  # 0 to take first pr and 'y' to approve it
+            gpki.review_requests()
+
+        # now check if master has desired key
+        self.repo_sandbox.check_out('master')
+        files = []
+        for root, dirs, files_in_dir in os.walk(test_dir + '/vault/public/identities/'):
+            for file in files_in_dir:
+                files.append(file)
+
+        self.assertEqual(len(files), 1)
+        self.assertEqual(expected_file_list, files)
+
+        # check if accepted branch was removed from remote
+        remote_branches = shell(os.path.join(test_dir, 'vault', 'public'), 'git branch -r').strip().split(' ')
+        self.assertNotIn('origin/' + unmerged_branch, remote_branches)
+
+    def test_accept_pr_from_imported_multiple_keys(self):
+        root_dir = os.path.abspath(__file__)
+        with patch('builtins.input',
+                   return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            test_dir = GitPKI_Tester.get_temp_directory()
+            gpki = GPKI(test_dir)
+            git = Git(test_dir + '/vault/public')
+
+        with patch('builtins.input', return_value='y') as _:  # To confirm that file contains proper keys
+            with StringIO() as out:
+                with redirect_stdout(out):
+                    gpki.import_keys([root_dir.replace('test_gpki.py', 'tester_exported_multiple.txt')])
+                raw_output = out.getvalue()
+
+        unmerged_branch = list(git.list_branches_unmerged_to_remote_counterpart_of('master'))[0].branch
+        expected_file_list = ['5e42d830dcf16917dc7179bd196d044b1fdcc3e6', 'bff0a80ce6b1aca266e017b134ed88b13c45a6ef']
+        with patch('builtins.input', side_effect=[0, 'y']) as _:  # 0 to take first pr and 'y' to approve it
+            gpki.review_requests()
+
+        # now check if master has desired key
+        self.repo_sandbox.check_out('master')
+        files = []
+        for root, dirs, files_in_dir in os.walk(test_dir + '/vault/public/identities/'):
+            for file in files_in_dir:
+                files.append(file)
+
+        self.assertEqual(len(files), 2)
+        self.assertEqual(expected_file_list, files)
+
+        # check if accepted branch was removed from remote
         remote_branches = shell(os.path.join(test_dir, 'vault', 'public'), 'git branch -r').strip().split(' ')
         self.assertNotIn('origin/' + unmerged_branch, remote_branches)
