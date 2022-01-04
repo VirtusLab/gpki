@@ -116,8 +116,8 @@ class GnuPGHandler:
     def parse_key(self, raw_key):
         uid = raw_key["uids"][0]
         name = uid.split()[0]
-        email = uid[1][1:-1]
-        description = uid[2][1:-1]
+        email = '' if name == uid else uid.split()[1][1:-1]
+        description = '' if name == uid else uid.split()[2][1:-1]
         fingerprint = raw_key["fingerprint"].lower()
         created_on = self.__key_parse_date(raw_key, "date")
         expires_on = self.__key_parse_date(raw_key, "expires")
