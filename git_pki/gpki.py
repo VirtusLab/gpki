@@ -67,7 +67,7 @@ class GPKI:
         key = self.__gpg.export_public_key(name)
         file = Path(f"{self.__git.identity_dir}/{name}/{fingerprint}")
         self.__export_key(key, Path(file))
-        self.__git.push_entity(f"{name}/{fingerprint}", f"Publish key {name}/{fingerprint}")
+        self.__git.push_branch(f"{name}/{fingerprint}", f"Publish key {name}/{fingerprint}")
         print(key)
         # TODO (#24): maybe find a way to revert changes if PR gets rejected ?
         #  fetch --prune, then check which branch is present locally and not on remote, then remove keys from selected branches
@@ -149,7 +149,7 @@ class GPKI:
             return
         branch_name = f'import/{sha1_encode("".join(fingerprints))}'  # input("Specify branch name: ").replace(" ", "_")
         message = f"Import keys {', '.join(fingerprints)}"   # input("Specify commit title: ")
-        self.__git.push_entity(branch_name, message)
+        self.__git.push_branch(branch_name, message)
 
     def export_keys(self, names, target_file, mode=None):
         if file_exists(target_file):

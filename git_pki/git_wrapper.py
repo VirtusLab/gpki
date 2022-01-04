@@ -42,7 +42,7 @@ class Git:
             for path in os.listdir(self.key_dir):
                 listener.key_added(path)
 
-    def push_entity(self, branch, message):
+    def push_branch(self, branch, message):
         # TODO (#13): recover on failure
         shell(self.root_dir, f"git checkout -b {branch}")
         shell(self.root_dir, "git add -A")
@@ -106,9 +106,9 @@ class Git:
     def path_to(self, path):
         return Path(f"{self.root_dir}/{path}")
 
-    def is_mergeable_to(self, first_branch, second_branch):
-        merge_base = shell(self.root_dir, f"git merge-base {second_branch} {first_branch}").strip()
-        output = shell(self.root_dir, f"git merge-tree {merge_base} {first_branch} {second_branch}").strip()
+    def is_mergeable_to(self, base_branch, head_branch):
+        merge_base = shell(self.root_dir, f"git merge-base {head_branch} {base_branch}").strip()
+        output = shell(self.root_dir, f"git merge-tree {merge_base} {base_branch} {head_branch}").strip()
         return 'changed in both' not in output  # most probably there will be conflict when 'change in both' is present
 
     def get_request(self, request):
@@ -130,5 +130,4 @@ class Git:
         import_hash = request.branch.split('/')[-1]
         branch = Branch('origin', '/'.join(['import', import_hash]), request.branch)
         return ImportRequest(branch,
-                             import_hash,
-                             self.path_to(f'identities/import/{import_hash}'))
+                             import_hash)
