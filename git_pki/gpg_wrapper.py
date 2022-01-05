@@ -128,3 +128,10 @@ class GnuPGHandler:
             return datetime.fromtimestamp(int(key[field])).strftime("%Y-%m-%d")
         except ValueError:
             return None  # in case there is no expiration date
+
+    def get_key_by_id(self, keyid):
+        keys = self.gpg.list_keys(False, keys=None)
+        for key in keys:
+            if key['keyid'] == keyid:
+                return self.parse_key(key)
+

@@ -65,6 +65,12 @@ class Git:
     def commit(self, message):
         shell(self.root_dir, f"git commit -m '{message}'")
 
+    def stash(self):
+        shell(self.root_dir, "git stash")
+
+    def add(self, path):
+        shell(self.root_dir, f"git add {path}")
+
     def list_branches_unmerged_to_remote_counterpart_of(self, branch):
         raw = shell(self.root_dir, f"git branch -a --no-merged origin/{branch}").splitlines()
         strip = lambda line: line.strip()
