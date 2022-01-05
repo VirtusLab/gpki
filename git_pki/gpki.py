@@ -147,8 +147,8 @@ class GPKI:
 
         if not imported:
             return
-        branch_name = f'import/{sha1_encode("".join(fingerprints))}'  # input("Specify branch name: ").replace(" ", "_")
-        message = f"Import keys {', '.join(fingerprints)}"   # input("Specify commit title: ")
+        branch_name = f'import/{sha1_encode("".join(fingerprints))}'
+        message = f"Import keys {', '.join(fingerprints)}"
         self.__git.push_branch(branch_name, message)
 
     def export_keys(self, names, target_file, mode=None):

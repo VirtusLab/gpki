@@ -18,7 +18,6 @@ class GnuPGHandler:
         self.gpg.encoding = 'utf-8'
 
     def generate_key(self, name, email, description, passphrase=None):
-        # TODO (#12): handle null email and description
         key_spec = f"""
                    Key-Type:	RSA
                    Key-Length: 	3072
@@ -116,8 +115,8 @@ class GnuPGHandler:
     def parse_key(self, raw_key):
         uid = raw_key["uids"][0]
         name = uid.split()[0]
-        email = '' if name == uid else uid.split()[1][1:-1]
-        description = '' if name == uid else uid.split()[2][1:-1]
+        email = None if name == uid else uid.split()[1][1:-1]
+        description = None if name == uid else uid.split()[2][1:-1]
         fingerprint = raw_key["fingerprint"].lower()
         created_on = self.__key_parse_date(raw_key, "date")
         expires_on = self.__key_parse_date(raw_key, "expires")

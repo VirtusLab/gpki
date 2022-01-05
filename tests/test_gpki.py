@@ -187,13 +187,13 @@ class GitPKI_Tester(TestCase):
                     gpki.import_keys([test_dir.replace('test_gpki.py', 'test_keys_input.txt')])
                 raw_output = out.getvalue()
 
-        desired_output = ('\nImport Summary:\n\n'
+        desired_output = ('Import Summary:\n\n'
                           'Unchanged:\n'
-                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 pioter  \n\n'  
+                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 pioter None None\n\n'  
                           'Succeded:\n'
-                          'fe0f710be0fbde4ac0384bf4c9a8dfbd8930675c 2021-12-13 2022-06-11 pio  \n'  
-                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 pioter  \n'
-                          '5ec643aba5e71827805eff7b297226aeb797e70c 2021-12-20 2022-06-18 p3')
+                          'fe0f710be0fbde4ac0384bf4c9a8dfbd8930675c 2021-12-13 2022-06-11 pio None None\n'  
+                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 pioter None None\n'
+                          '5ec643aba5e71827805eff7b297226aeb797e70c 2021-12-20 2022-06-18 p3 None None')
 
         self.assertIn(desired_output, raw_output)
 
@@ -205,10 +205,10 @@ class GitPKI_Tester(TestCase):
 
         desired_output = ('\nImport Summary:\n\n'
                           'Unchanged:\n'
-                          'fe0f710be0fbde4ac0384bf4c9a8dfbd8930675c 2021-12-13 2022-06-11 pio  \n'
-                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 pioter  \n'
-                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 pioter  \n'
-                          '5ec643aba5e71827805eff7b297226aeb797e70c 2021-12-20 2022-06-18 p3')
+                          'fe0f710be0fbde4ac0384bf4c9a8dfbd8930675c 2021-12-13 2022-06-11 pio None None\n'
+                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 pioter None None\n'
+                          'b6f66d4bff2264f7be13f31dbc635375b29cd83a 2021-12-14 2022-06-12 pioter None None\n'
+                          '5ec643aba5e71827805eff7b297226aeb797e70c 2021-12-20 2022-06-18 p3 None None')
 
         self.assertIn(desired_output, raw_output)
 

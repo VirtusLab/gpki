@@ -129,5 +129,4 @@ class Git:
     def get_import_request(self, request):
         import_hash = request.branch.split('/')[-1]
         branch = Branch('origin', '/'.join(['import', import_hash]), request.branch)
-        return ImportRequest(branch,
-                             import_hash)
+        return ImportRequest(branch, import_hash)
