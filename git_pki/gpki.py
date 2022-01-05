@@ -3,6 +3,7 @@ import argparse
 import os
 import sys
 import tempfile
+import time
 
 import getpass
 import iterfzf
@@ -44,9 +45,15 @@ class GPKI:
         self.__review_dir = mkdir(f"{home}/reviews")
         self.__gpg = GnuPGHandler(self.__file_gpghome)
         self.__git = Git(self.__file_repository)
+        self.invalidated = self.get_invalidated_keys()
+        self.is_invalidated_file_updated = False
 
         listener = KeyChangeListener(self.__gpg)
         self.__git.update(listener)
+
+    def __del__(self):
+        if self.is_invalidated_file_updated:
+            self.push_invalidated()
 
     def generate_identity(self, name, email, description, passphrase=None):
         # TODO (#22): verify that repository is in clean state? are we on master branch?
@@ -83,6 +90,7 @@ class GPKI:
         for key in self.__gpg.public_keys_list():
             # TODO (#25): align the text correctly
             print(f"{key}")
+        self.update_invalidated_file('yvtyytvbhbkuy', time.time())
 
     def encrypt(self, source, target, passphrase=None):
         if target is not None and os.path.isfile(target):
@@ -340,6 +348,37 @@ class GPKI:
         if not self.is_any_key_valid(filepath):
             raise Git_PKI_Exception(f"The file {filepath} does not contain any valid key, aborting.")
 
+    def get_invalidated_keys(self):
+        try:
+            self.__git.checkout('invalidated')
+            with open(os.path.join(self.__git.root_dir, 'invalidated'), 'r') as inv_file:
+                inv_data = inv_file.readlines()
+        finally:
+            self.__git.checkout('master')
+        return list(map(lambda x: x.split(), inv_data))
+
+    def update_invalidated_file(self, fingerprint, timestamp):
+        self.is_invalidated_file_updated = True
+        line = list(filter(lambda l: l[0] == fingerprint, self.invalidated))
+        if line:
+            if timestamp < int(line[0][1]):
+                self.invalidated.remove(line[0])
+                self.invalidated.append([fingerprint, str(timestamp)])
+            else:
+                return  # do not extend expiration time
+        else:
+            self.invalidated.append([fingerprint, str(timestamp)])
+
+    def push_invalidated(self):
+        try:
+            self.__git.checkout('invalidated')
+            with open(os.path.join(self.__git.root_dir, 'invalidated'), 'w') as inv_file:
+                inv_file.writelines(map(lambda item: " ".join(item), self.invalidated))
+            self.__git.commit('updated invalidated file')
+            self.__git.push('invalidated')
+        finally:
+            self.__git.checkout('master')
+
 
 def create_gpki_parser():
     common_args_parser = argparse.ArgumentParser(
@@ -461,7 +500,7 @@ def launch(parsed_cli):
 def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
-    parsed_cli = cli_parser.parse_args(args)
+    parsed_cli = cli_parser.parse_args(['recipients'])
     launch(parsed_cli)
 
 

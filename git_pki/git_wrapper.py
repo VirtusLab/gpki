@@ -46,7 +46,7 @@ class Git:
         # TODO (#13): recover on failure
         shell(self.root_dir, f"git checkout -b {branch}")
         shell(self.root_dir, "git add -A")
-        shell(self.root_dir, f"git commit -m '{message}'")
+        self.commit(message)
         self.push(branch)
         self.checkout(PREVIOUS_BRANCH)
 
@@ -61,6 +61,9 @@ class Git:
 
     def fetch(self, prune=False):
         shell(self.root_dir, f"git fetch origin {'--prune' if prune else ''}")
+
+    def commit(self, message):
+        shell(self.root_dir, f"git commit -m '{message}'")
 
     def list_branches_unmerged_to_remote_counterpart_of(self, branch):
         raw = shell(self.root_dir, f"git branch -a --no-merged origin/{branch}").splitlines()
