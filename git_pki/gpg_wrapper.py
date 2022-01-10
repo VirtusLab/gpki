@@ -74,10 +74,10 @@ class GnuPGHandler:
             print("Write message, then press enter and ctrl+d")
             for line in sys.stdin:
                 data.append(line)
-            result = self.gpg.encrypt("".join(data), recipient, sign=signatory, output=target, passphrase=passphrase)
+            result = self.gpg.encrypt("".join(data), recipient, sign=signatory, output=target, passphrase=passphrase, always_trust=True)
         elif os.path.isfile(source):
             with open(source, "rb") as data:
-                result = self.gpg.encrypt_file(data, recipient, sign=signatory, output=target, passphrase=passphrase)
+                result = self.gpg.encrypt_file(data, recipient, sign=signatory, output=target, passphrase=passphrase, always_trust=True)
         else:
             print(f"Specified source file: {source} was not found, aborting.")
         if not result.ok:
