@@ -3,7 +3,6 @@ from typing import NewType
 
 new_line = '\n '
 PREVIOUS_BRANCH = '-'
-MONTH = 60*60*24*30  # [s]
 
 ShellCommand = NewType("ShellCommand", str)
 
@@ -12,6 +11,7 @@ Request = namedtuple('Request', ["branch", "title"])
 FileChange = namedtuple('FileChange', ["op", "path"])
 Key = namedtuple('Key', ["name", "email", "description", "fingerprint", "created_on", "expires_on"])
 AddIdentityRequest = namedtuple('AddIdentityRequest', ['branch', 'name', 'fingerprint', 'file'])
+RevokeIdentityRequest = namedtuple('RevokeIdentityRequest', ['branch', 'name', 'fingerprint', 'file'])
 ImportRequest = namedtuple('ImportRequest', ['branch', 'hash'])
 
 

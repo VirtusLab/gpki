@@ -92,12 +92,6 @@ class GitPKI_Tester(TestCase):
             .new_branch("master")
             .commit("initial commit")
             .push()
-            .new_branch('invalidated')
-            .execute('echo "fingerprint 1234564224" >> invalidated')
-            .execute('git add invalidated')
-            .commit('initial invalidated state')
-            .push()
-            .check_out('master')
         )
 
     def test_add_identity(self):
@@ -268,7 +262,7 @@ class GitPKI_Tester(TestCase):
 
         # pr branch should be still available on remote
         remote_branches = shell(os.path.join(test_dir, 'vault', 'public'), 'git branch -r').strip().split(' ')
-        self.assertIn('origin/' + unmerged_branch, remote_branches)
+        self.assertIn(unmerged_branch, remote_branches)
 
     def test_reject_pr_with_branch_deletion(self):
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use

@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 from git_pki import __version__
-from git_pki.custom_types import KeyChange, ImportRequest, MONTH
+from git_pki.custom_types import KeyChange, ImportRequest, MONTH, RevokeIdentityRequest
 from git_pki.exceptions import Git_PKI_Exception
 from git_pki.git_wrapper import Git
 from git_pki.gpg_wrapper import GnuPGHandler
@@ -45,15 +45,9 @@ class GPKI:
         self.__review_dir = mkdir(f"{home}/reviews")
         self.__gpg = GnuPGHandler(self.__file_gpghome)
         self.__git = Git(self.__file_repository)
-        self.invalidated = []
-        self.is_invalidated_file_updated = False
 
         listener = KeyChangeListener(self.__gpg)
         self.__git.update(listener)
-
-    def __del__(self):
-        if self.is_invalidated_file_updated:
-            self.push_invalidated()
 
     def generate_identity(self, name, email, description, passphrase=None):
         # TODO (#22): verify that repository is in clean state? are we on master branch?, done
@@ -67,14 +61,23 @@ class GPKI:
             passphrase = getpass.getpass(f"Specify passphrase for the existing key of [{name}]: ")
             self.__gpg.remove_private_key(existing_key, passphrase)
             if input("Do you want to invalidate previous public key? [yN]\n").lower() == "y":
-                self.get_invalidated_keys()
-                public_key_fingerprint = self.__gpg.public_key_fingerprint(name)
-                self.__gpg.remove_public_key(public_key_fingerprint)
-                self.update_invalidated_file(public_key_fingerprint, time.time())
-                # remove identity from master branch and maybe delete identity branch if not reviewed yet
+                self.__gpg.remove_public_key(existing_key)
+                ans = input("Specify expiration date in format YYYY-MM-DDTHH:mm:ss or leave empty to take current timestamp.")
+                if ans == '':
+                    revocation_timestamp = time.time()
+                else:
+                    try:
+                        revocation_timestamp = datetime.fromisoformat(ans).timestamp()
+                    except ValueError:
+                        Git_PKI_Exception(f"Unrecognized date format, provided date: {ans}")
 
-            # TODO (#23): ask to set private/public key to expired state
-            #  if so, publish updated public key
+                # make RevokeIdentityRequest
+                revoke_file = Path(f"{self.__git.identity_dir}/{name}/{existing_key}_revoked")
+                mkdir(revoke_file.parent)
+                with open(revoke_file, 'w') as f:
+                    f.write(str(revocation_timestamp))
+                self.__git.push_branch(f"{name}/{existing_key}_revoked", f"Revoke key {name}/{existing_key}_revoked")
+
         fingerprint = self.__gpg.generate_key(name, email, description, passphrase=passphrase)
         if fingerprint is None:
             return
@@ -118,8 +121,9 @@ class GPKI:
 
         self.__gpg.encrypt(recipient, signatory, source, target, passphrase)
 
-    def decrypt(self, source, target, passphrase=None):
-        self.get_invalidated_keys()
+    def decrypt(self, source, target, passphrase=None, update=False):
+        if update:
+            self.__git.pull('master')
         if file_exists(target):
             if input(f"Target file already exist, do you want to overwrite? [yN] ").lower() != 'y':
                 return
@@ -138,8 +142,8 @@ class GPKI:
             print(f"Specified source file: {source} was not found, aborting.")
             return
         key = self.__gpg.get_key_by_id(recipient[0])
-        if self.is_key_invalidated(key.fingerprint):
-            raise Git_PKI_Exception("Could not decrypt message from invalidated sender.")
+        if self.is_key_revoked(key):
+            raise Git_PKI_Exception("Could not decrypt message signed with revoked key.")
 
         if not passphrase:
             passphrase = getpass.getpass(f"Specify passphrase for {recipient}: ")
@@ -286,8 +290,7 @@ class GPKI:
                 added = reviewed.path_to(change.path)
                 return KeyChange(added, removed)
 
-        git.fetch()
-        git.pull('master')
+        self.merge_revoked()
 
         unmerged = list(git.list_branches_unmerged_to_remote_counterpart_of(git.current_branch()))
         if not unmerged:
@@ -321,11 +324,32 @@ class GPKI:
                 git.remove_remote_branch(request.branch.name)
                 print(f'\nSuccessfully deleted branch {request.branch}')
         else:
-            print('Merging changes into master...')
-            git.merge(request.branch.full_name)
-            git.push('master')
-            git.remove_remote_branch(request.branch.name)
-            print("Done.")
+            self.merge_changes(request)
+
+    def merge_changes(self, request):
+        print(f'Merging branch {request.branch.name} into master...')
+        self.__git.merge(request.branch.full_name)
+        self.__git.push('master')
+        self.__git.remove_remote_branch(request.branch.name)
+        print("Done.")
+
+    def merge_revoked(self):
+        self.__git.fetch()
+        self.__git.pull('master')
+        unmerged_branches = list(self.__git.list_branches_unmerged_to_remote_counterpart_of(self.__git.current_branch()))
+        for branch in unmerged_branches:
+            request = self.__git.get_request(branch)
+            if isinstance(request, RevokeIdentityRequest):
+                if self.__git.is_mergeable_to('master', request.branch.full_name):
+                    self.merge_changes(request)
+                    couterbranch_candidate = request.branch.name.replace('_revoked', '')
+                    try:
+                        self.__git.remove_remote_branch(couterbranch_candidate)
+                    except EnvironmentError:
+                        pass
+                else:
+                    print(f"Error: Cannot automerge branch {request.branch.name}")  # Maybe raise an exception here
+
 
     def is_key_expired(self, key):
         if not key:
@@ -360,57 +384,10 @@ class GPKI:
         if not self.is_any_key_valid(filepath):
             raise Git_PKI_Exception(f"The file {filepath} does not contain any valid key, aborting.")
 
-    def get_invalidated_keys(self):
-        try:
-            self.__git.pull('invalidated')
-            self.__git.checkout('invalidated')
-            with open(os.path.join(self.__git.root_dir, 'invalidated'), 'r') as inv_file:
-                inv_data = inv_file.readlines()
-        finally:
-            self.__git.checkout('master')
-        return list(map(lambda x: x.strip().split(), inv_data))
+    def is_key_revoked(self, key):
+        return os.path.isfile(self.__git.path_to(os.path.join('identities', key.name, key.fingerprint + '_revoked')))
+        # if file is availbe, maybe also return revocation timestamp
 
-    def update_invalidated_file(self, fingerprint, timestamp):
-        line = list(filter(lambda l: l[0] == fingerprint, self.invalidated))
-        if line:
-            if int(timestamp) < int(line[0][1]):
-                self.invalidated.remove(line[0])
-                self.invalidated.append([fingerprint, str(timestamp)])
-                self.is_invalidated_file_updated = True
-            else:
-                return  # do not extend expiration time
-        else:
-            self.invalidated.append([fingerprint, str(timestamp)])
-            self.is_invalidated_file_updated = True
-
-    def push_invalidated(self):
-        try:
-            self.__git.checkout('invalidated')
-            with open(os.path.join(self.__git.root_dir, 'invalidated'), 'w') as inv_file:
-                inv_file.writelines(map(lambda item: " ".join(item), self.invalidated))
-            self.__git.add('invalidated')
-            self.__git.commit('updated invalidated file')
-            self.__git.push('invalidated')
-        finally:
-            self.__git.stash()
-            self.__git.checkout('master')
-
-    def is_key_invalidated(self, fingerprint):
-        for invalidated_key in self.invalidated:
-            fp, timestamp = invalidated_key.split()
-            timestamp = int(timestamp)
-            if fingerprint == fp and timestamp < time.time():
-                return True
-        return False
-
-    def remove_outdated_keys_from_invalidated(self):
-        initial_length = len(self.invalidated)
-        self.invalidated = [key for key in self.invalidated if int(key[1]) + MONTH < time.time()]
-        final_length = len(self.invalidated)
-        if not self.is_invalidated_file_updated:
-            self.is_invalidated_file_updated = final_length < initial_length
-
-    # remove keys from invalidated file
 
 def create_gpki_parser():
     common_args_parser = argparse.ArgumentParser(
@@ -448,6 +425,7 @@ def create_gpki_parser():
     decrypt_parser.add_argument('--input', '-i', default=None)
     decrypt_parser.add_argument('--output', '-o', default=None)
     decrypt_parser.add_argument('--password', '-p', default=None)
+    decrypt_parser.add_argument('--update', '-u', action='store_true', default=False)
 
     new_identity_parser = subparsers.add_parser(
         'identity',
@@ -507,7 +485,7 @@ def launch(parsed_cli):
     cmd = parsed_cli.command
 
     if cmd == 'decrypt':
-        gpki.decrypt(parsed_cli.input, parsed_cli.output, parsed_cli.password)
+        gpki.decrypt(parsed_cli.input, parsed_cli.output, parsed_cli.password, parsed_cli.update)
     elif cmd == 'encrypt':
         gpki.encrypt(parsed_cli.input, parsed_cli.output, parsed_cli.password)
     elif cmd == 'identity':
@@ -532,7 +510,7 @@ def launch(parsed_cli):
 def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
-    parsed_cli = cli_parser.parse_args(['decrypt'])
+    parsed_cli = cli_parser.parse_args(['review'])
     launch(parsed_cli)
 
 

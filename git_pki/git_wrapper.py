@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import List
 
-from git_pki.custom_types import AddIdentityRequest, ImportRequest, Branch, FileChange, PREVIOUS_BRANCH, Request
+from git_pki.custom_types import AddIdentityRequest, ImportRequest, Branch, FileChange, PREVIOUS_BRANCH, Request, RevokeIdentityRequest
 from git_pki.utils import mkdir, shell
 
 
@@ -65,14 +65,11 @@ class Git:
     def commit(self, message):
         shell(self.root_dir, f"git commit -m '{message}'")
 
-    def stash(self):
-        shell(self.root_dir, "git stash")
-
     def add(self, path):
         shell(self.root_dir, f"git add {path}")
 
     def list_branches_unmerged_to_remote_counterpart_of(self, branch):
-        raw = shell(self.root_dir, f"git branch -a --no-merged origin/{branch}").splitlines()
+        raw = shell(self.root_dir, f"git branch -r --no-merged origin/{branch}").splitlines()
         strip = lambda line: line.strip()
         to_tuple = lambda branch: Request(branch, self.__commit_title(branch))
         return map(to_tuple, map(strip, raw))
@@ -124,7 +121,10 @@ class Git:
         if "import" in request.branch:
             return self.get_import_request(request)
         else:
-            return self.get_add_identity_request(request)
+            if 'revoke' in request.branch:
+                return self.get_revoke_identity_request(request)
+            else:
+                return self.get_add_identity_request(request)
 
     def get_add_identity_request(self, request):
         name = request.branch.split('/')[-2]
@@ -134,6 +134,17 @@ class Git:
                                   name,
                                   fingerprint,
                                   self.path_to(f'identities/{name}/{fingerprint}'))
+
+    def get_revoke_identity_request(self, request):
+        name = request.branch.split('/')[-2]
+        fingerprint_revoked = request.branch.split('/')[-1]
+        fingerprint = fingerprint_revoked.split('_')[0]
+        branch = Branch('origin', '/'.join([name, fingerprint_revoked]), request.branch)
+        return RevokeIdentityRequest(branch,
+                                     name,
+                                     fingerprint,
+                                     self.path_to(f'identities/{name}/{fingerprint}_revoked'))
+
 
     def get_import_request(self, request):
         import_hash = request.branch.split('/')[-1]
