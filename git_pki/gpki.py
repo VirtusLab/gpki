@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 from git_pki import __version__
-from git_pki.custom_types import KeyChange, ImportRequest
+from git_pki.custom_types import KeyChange, ImportRequest, MONTH
 from git_pki.exceptions import Git_PKI_Exception
 from git_pki.git_wrapper import Git
 from git_pki.gpg_wrapper import GnuPGHandler
@@ -51,8 +51,13 @@ class GPKI:
         listener = KeyChangeListener(self.__gpg)
         self.__git.update(listener)
 
+    def __del__(self):
+        if self.is_invalidated_file_updated:
+            self.push_invalidated()
+
     def generate_identity(self, name, email, description, passphrase=None):
-        # TODO (#22): verify that repository is in clean state? are we on master branch?
+        # TODO (#22): verify that repository is in clean state? are we on master branch?, done
+        self.__git.checkout('master')
         existing_key = self.__gpg.private_key_fingerprint(name)
         if existing_key is not None:
             # If key exists, confirm removal of the private version and move public one to the archive
@@ -61,6 +66,13 @@ class GPKI:
                 return
             passphrase = getpass.getpass(f"Specify passphrase for the existing key of [{name}]: ")
             self.__gpg.remove_private_key(existing_key, passphrase)
+            if input("Do you want to invalidate previous public key? [yN]\n").lower() == "y":
+                self.get_invalidated_keys()
+                public_key_fingerprint = self.__gpg.public_key_fingerprint(name)
+                self.__gpg.remove_public_key(public_key_fingerprint)
+                self.update_invalidated_file(public_key_fingerprint, time.time())
+                # remove identity from master branch and maybe delete identity branch if not reviewed yet
+
             # TODO (#23): ask to set private/public key to expired state
             #  if so, publish updated public key
         fingerprint = self.__gpg.generate_key(name, email, description, passphrase=passphrase)
@@ -107,8 +119,7 @@ class GPKI:
         self.__gpg.encrypt(recipient, signatory, source, target, passphrase)
 
     def decrypt(self, source, target, passphrase=None):
-        # self.__git.pull('invalidated')
-        # self.get_invalidated_keys()
+        self.get_invalidated_keys()
         if file_exists(target):
             if input(f"Target file already exist, do you want to overwrite? [yN] ").lower() != 'y':
                 return
@@ -127,7 +138,7 @@ class GPKI:
             print(f"Specified source file: {source} was not found, aborting.")
             return
         key = self.__gpg.get_key_by_id(recipient[0])
-        if not self.is_key_invalidated(key.fingerprint):
+        if self.is_key_invalidated(key.fingerprint):
             raise Git_PKI_Exception("Could not decrypt message from invalidated sender.")
 
         if not passphrase:
@@ -351,24 +362,26 @@ class GPKI:
 
     def get_invalidated_keys(self):
         try:
+            self.__git.pull('invalidated')
             self.__git.checkout('invalidated')
             with open(os.path.join(self.__git.root_dir, 'invalidated'), 'r') as inv_file:
                 inv_data = inv_file.readlines()
         finally:
             self.__git.checkout('master')
-        return list(map(lambda x: x.split(), inv_data))
+        return list(map(lambda x: x.strip().split(), inv_data))
 
     def update_invalidated_file(self, fingerprint, timestamp):
-        self.is_invalidated_file_updated = True
         line = list(filter(lambda l: l[0] == fingerprint, self.invalidated))
         if line:
-            if timestamp < int(line[0][1]):
+            if int(timestamp) < int(line[0][1]):
                 self.invalidated.remove(line[0])
                 self.invalidated.append([fingerprint, str(timestamp)])
+                self.is_invalidated_file_updated = True
             else:
                 return  # do not extend expiration time
         else:
             self.invalidated.append([fingerprint, str(timestamp)])
+            self.is_invalidated_file_updated = True
 
     def push_invalidated(self):
         try:
@@ -390,6 +403,14 @@ class GPKI:
                 return True
         return False
 
+    def remove_outdated_keys_from_invalidated(self):
+        initial_length = len(self.invalidated)
+        self.invalidated = [key for key in self.invalidated if int(key[1]) + MONTH < time.time()]
+        final_length = len(self.invalidated)
+        if not self.is_invalidated_file_updated:
+            self.is_invalidated_file_updated = final_length < initial_length
+
+    # remove keys from invalidated file
 
 def create_gpki_parser():
     common_args_parser = argparse.ArgumentParser(

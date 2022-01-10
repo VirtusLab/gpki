@@ -134,4 +134,3 @@ class GnuPGHandler:
         for key in keys:
             if key['keyid'] == keyid:
                 return self.parse_key(key)
-

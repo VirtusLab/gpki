@@ -3,6 +3,7 @@ from typing import NewType
 
 new_line = '\n '
 PREVIOUS_BRANCH = '-'
+MONTH = 60*60*24*30  # [s]
 
 ShellCommand = NewType("ShellCommand", str)
 

@@ -81,7 +81,7 @@ class Git:
         return shell(self.root_dir, 'git branch').replace('\n', '').split()
 
     def checkout(self, branch_name):
-        shell(self.root_dir, f"git checkout {branch_name}")
+        shell(self.root_dir, f"git checkout {branch_name} --")
 
     def remove_local_branch(self, branch):
         shell(self.root_dir, f"git branch -D {branch}")

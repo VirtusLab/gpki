@@ -92,6 +92,12 @@ class GitPKI_Tester(TestCase):
             .new_branch("master")
             .commit("initial commit")
             .push()
+            .new_branch('invalidated')
+            .execute('echo "fingerprint 1234564224" >> invalidated')
+            .execute('git add invalidated')
+            .commit('initial invalidated state')
+            .push()
+            .check_out('master')
         )
 
     def test_add_identity(self):
