@@ -6,7 +6,7 @@ import sys
 from getpass import getpass
 from datetime import datetime
 
-from git_pki.custom_types import Key
+from git_pki.custom_types import Key, SignatureVerification
 
 
 verbose = False
@@ -102,6 +102,17 @@ class GnuPGHandler:
         else:
             print(f"Decrypted data saved in {target}")
 
+    def verify(self, source, passphrase):
+        if os.path.isfile(source):
+            with open(source, "rb") as source_file:
+                result = self.gpg.decrypt_file(source_file, output=None, passphrase=passphrase)
+        else:
+            result = self.gpg.decrypt("".join(source), output=None, passphrase=passphrase)
+        if not result.ok:
+            print(f"Could not verify: {result.status}.")
+            return
+        return self.parse_verification(result.sig_info)
+
     def get_recipients_from_file(self, source_file):
         return self.gpg.get_recipients_file(source_file)
 
@@ -122,6 +133,15 @@ class GnuPGHandler:
         expires_on = self.__key_parse_date(raw_key, "expires")
         return Key(name, email, description, fingerprint, created_on, expires_on)
 
+    def parse_verification(self, sig_info):
+        sig_hash = list(sig_info.keys())[0]
+        timestamp = sig_info[sig_hash]['timestamp']
+        signatory_fingerprint = sig_info[sig_hash]['fingerprint']
+        signatory_name = sig_info[sig_hash]['username']
+        expiry = sig_info[sig_hash]['expiry']
+        status = sig_info[sig_hash]['status']
+        return SignatureVerification(timestamp, signatory_fingerprint, signatory_name, expiry, status)
+
     @staticmethod
     def __key_parse_date(key, field):
         try:
@@ -131,6 +151,8 @@ class GnuPGHandler:
 
     def get_key_by_id(self, keyid):
         keys = self.gpg.list_keys(False, keys=None)
+        if not keys:
+            return
         for key in keys:
             if key['keyid'] == keyid:
                 return self.parse_key(key)

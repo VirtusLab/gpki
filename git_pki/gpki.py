@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 from git_pki import __version__
-from git_pki.custom_types import KeyChange, ImportRequest, MONTH, RevokeIdentityRequest
+from git_pki.custom_types import KeyChange, ImportRequest, RevokeIdentityRequest
 from git_pki.exceptions import Git_PKI_Exception
 from git_pki.git_wrapper import Git
 from git_pki.gpg_wrapper import GnuPGHandler
@@ -50,7 +50,6 @@ class GPKI:
         self.__git.update(listener)
 
     def generate_identity(self, name, email, description, passphrase=None):
-        # TODO (#22): verify that repository is in clean state? are we on master branch?, done
         self.__git.checkout('master')
         existing_key = self.__gpg.private_key_fingerprint(name)
         if existing_key is not None:
@@ -142,11 +141,18 @@ class GPKI:
             print(f"Specified source file: {source} was not found, aborting.")
             return
         key = self.__gpg.get_key_by_id(recipient[0])
-        if self.is_key_revoked(key):
-            raise Git_PKI_Exception("Could not decrypt message signed with revoked key.")
+        if key is None:
+            raise Git_PKI_Exception("Could not determine message recipient, try to update keys with `git pki update` first.")
+        if not passphrase:
+            passphrase = getpass.getpass(f"Specify passphrase for {key.name}: ")
+
+        verification = self.__gpg.verify(source, passphrase)
+
+        if self.is_key_revoked(key) and self.get_revocation_time(key) < verification.timestamp:
+            raise Git_PKI_Exception("Could not decrypt message signed with revoked key and message was signed after revocation time.")
 
         if not passphrase:
-            passphrase = getpass.getpass(f"Specify passphrase for {recipient}: ")
+            passphrase = getpass.getpass(f"Specify passphrase for {key.name}: ")
         self.__gpg.decrypt(source, target, passphrase)
 
     def import_keys(self, files):
@@ -344,7 +350,7 @@ class GPKI:
                     self.merge_changes(request)
                     couterbranch_candidate = request.branch.name.replace('_revoked', '')
                     try:
-                        self.__git.remove_remote_branch(couterbranch_candidate)
+                        self.__git.remove_remote_branch(couterbranch_candidate)  # it should rather automerge counterbranches also
                     except EnvironmentError:
                         pass
                 else:
@@ -386,8 +392,14 @@ class GPKI:
 
     def is_key_revoked(self, key):
         return os.path.isfile(self.__git.path_to(os.path.join('identities', key.name, key.fingerprint + '_revoked')))
-        # if file is availbe, maybe also return revocation timestamp
 
+    def get_revocation_time(self, key):
+        path = self.__git.path_to(os.path.join('identities', key.name, key.fingerprint + '_revoked'))
+        if os.path.isfile(path):
+            with open(path, 'r') as revoke_file:
+                return int(revoke_file.read().strip())
+        else:
+            return 0
 
 def create_gpki_parser():
     common_args_parser = argparse.ArgumentParser(
@@ -510,7 +522,7 @@ def launch(parsed_cli):
 def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
-    parsed_cli = cli_parser.parse_args(['review'])
+    parsed_cli = cli_parser.parse_args(args)
     launch(parsed_cli)
 
 
