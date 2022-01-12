@@ -10,12 +10,11 @@ import iterfzf
 from datetime import datetime
 from pathlib import Path
 
-
+import git_pki.gpg_wrapper
 from git_pki import __version__
 from git_pki.custom_types import KeyChange, ImportRequest, RevokeIdentityRequest
 from git_pki.exceptions import Git_PKI_Exception
 from git_pki.git_wrapper import Git
-from git_pki.gpg_wrapper import GnuPGHandler
 from git_pki.utils import file_exists, format_key, mkdir, read_multiline_string, sha1_encode
 from git_pki import gpg_wrapper
 
@@ -43,7 +42,7 @@ class GPKI:
         self.__file_gpghome = mkdir(f"{home}/vault/private", 0o700)
         self.__file_repository = mkdir(f"{home}/vault/public")
         self.__review_dir = mkdir(f"{home}/reviews")
-        self.__gpg = GnuPGHandler(self.__file_gpghome)
+        self.__gpg = git_pki.gpg_wrapper.GnuPGHandler(self.__file_gpghome)
         self.__git = Git(self.__file_repository)
 
         listener = KeyChangeListener(self.__gpg)
@@ -121,6 +120,8 @@ class GPKI:
         self.__gpg.encrypt(recipient, signatory, source, target, passphrase)
 
     def decrypt(self, source, target, passphrase=None, update=False):
+        priv_keys = list(self.__gpg.private_keys_list())
+        pub_keys = list(self.__gpg.public_keys_list())
         if update:
             self.__git.pull('master')
         if file_exists(target):
@@ -148,7 +149,7 @@ class GPKI:
 
         verification = self.__gpg.verify(source, passphrase)
 
-        if self.is_key_revoked(key) and self.get_revocation_time(key) < verification.timestamp:
+        if self.is_key_revoked(key) and self.get_revocation_time(key) < float(verification.timestamp):
             raise Git_PKI_Exception("Could not decrypt message signed with revoked key and message was signed after revocation time.")
 
         if not passphrase:
@@ -397,7 +398,7 @@ class GPKI:
         path = self.__git.path_to(os.path.join('identities', key.name, key.fingerprint + '_revoked'))
         if os.path.isfile(path):
             with open(path, 'r') as revoke_file:
-                return int(revoke_file.read().strip())
+                return float(revoke_file.read().strip())
         else:
             return 0
 

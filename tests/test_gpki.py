@@ -10,6 +10,7 @@ from io import StringIO
 from unittest import TestCase
 from unittest.mock import patch
 
+from git_pki.exceptions import Git_PKI_Exception
 from git_pki.gpki import GPKI
 from git_pki.git_wrapper import Git
 from git_pki.utils import shell
@@ -21,6 +22,10 @@ def mock_iterfzf(base_container, prompt=""):
 
 def mock_getpass(prompt):
     return "strong_password"
+
+
+def mock_export_public_key(cls, name):
+    return cls.gpg.export_keys(name, True, passphrase="strong_password")
 
 
 class GitRepositorySandbox:
@@ -353,3 +358,60 @@ class GitPKI_Tester(TestCase):
         # check if accepted branch was removed from remote
         remote_branches = shell(os.path.join(test_dir, 'vault', 'public'), 'git branch -r').strip().split(' ')
         self.assertNotIn('origin/' + unmerged_branch, remote_branches)
+
+    @patch('git_pki.gpg_wrapper.GnuPGHandler.export_public_key', mock_export_public_key)  # need to export private key
+    @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
+    @patch('iterfzf.iterfzf', mock_iterfzf)  # in tests we got only one identity per test, so we can easily get the first one and move on
+    def test_revoke_key(self):
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            test_dir = GitPKI_Tester.get_temp_directory()
+            gpki = GPKI(test_dir)
+            git = Git(test_dir + '/vault/public')
+            gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
+            gpki.generate_identity('tester2', 'tester2@test.com', 'empty description', passphrase='strong_password')
+
+        with patch('builtins.input', side_effect=[0, 'y']) as _:  # 0 to take first pr and 'y' to approve it
+            gpki.review_requests()
+
+        # also create a backup export of desired key, as it will be deleted from keyring
+        backup_path = git.path_to('backup_key')
+        gpki.export_keys(['tester'], backup_path)
+
+        stdin_backup = sys.stdin
+        sys.stdin = StringIO("Let's try to encrypt this message")
+        with StringIO() as out:
+            with redirect_stdout(out):
+                gpki.encrypt(None, None)
+            raw_output = out.getvalue()
+
+        sys.stdin = stdin_backup
+        encrypted_message = self.exctract_gnupg_message(raw_output)
+
+        # now revoke the key by overridding identity
+        with patch('builtins.input', side_effect=['y', 'y', '2022-01-01']) as _:
+            gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
+
+        # approve revoked key, merge into master
+        gpki.merge_revoked()
+
+        found_desired_revoked_file = False
+        for root, dirs, files in os.walk(git.path_to('identities')):
+            for f in files:
+                if root.endswith('tester') and 'revoked' in f:
+                    found_desired_revoked_file = True
+
+        #  check if revoked key is found on master
+        self.assertTrue(found_desired_revoked_file)
+
+        # load revoked key again into keyring
+        with patch('builtins.input', return_value='y') as _:
+            gpki.import_keys([backup_path])
+
+        # try to decrypt message with revoked key, expect to rise exception
+        sys.stdin = StringIO(encrypted_message)
+        with StringIO() as out:
+            with redirect_stdout(out):
+                with self.assertRaises(Git_PKI_Exception,
+                                       msg='Could not decrypt message signed with revoked key and message was signed after revocation time.'):
+                    gpki.decrypt(None, None)
+
