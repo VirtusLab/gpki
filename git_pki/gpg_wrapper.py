@@ -133,7 +133,8 @@ class GnuPGHandler:
         expires_on = self.__key_parse_date(raw_key, "expires")
         return Key(name, email, description, fingerprint, created_on, expires_on)
 
-    def parse_verification(self, sig_info):
+    @staticmethod
+    def parse_verification(sig_info):
         sig_hash = list(sig_info.keys())[0]
         timestamp = sig_info[sig_hash]['timestamp']
         signatory_fingerprint = sig_info[sig_hash]['fingerprint']
@@ -149,10 +150,6 @@ class GnuPGHandler:
         except ValueError:
             return None  # in case there is no expiration date
 
-    def get_key_by_id(self, keyid):
-        keys = self.gpg.list_keys(False, keys=None)
-        if not keys:
-            return
-        for key in keys:
-            if key['keyid'] == keyid:
-                return self.parse_key(key)
+    def get_private_key_by_id(self, keyid):
+        keys = self.gpg.list_keys(True, keys=keyid)
+        return self.parse_key(keys[0]) if keys else None

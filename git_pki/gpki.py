@@ -58,23 +58,23 @@ class GPKI:
                 return
             passphrase = getpass.getpass(f"Specify passphrase for the existing key of [{name}]: ")
             self.__gpg.remove_private_key(existing_key, passphrase)
-            if input("Do you want to invalidate previous public key? [yN]\n").lower() == "y":
+            if input("Invalidate previous public key? [yN]\n").lower() == "y":
                 self.__gpg.remove_public_key(existing_key)
-                ans = input("Specify expiration date in format YYYY-MM-DDTHH:mm:ss or leave empty to take current timestamp.")
+                ans = input("Specify expiration time in format YYYY-MM-DDTHH:mm:ss or leave empty to take current timestamp.")
                 if ans == '':
                     revocation_timestamp = time.time()
                 else:
                     try:
                         revocation_timestamp = datetime.fromisoformat(ans).timestamp()
                     except ValueError:
-                        Git_PKI_Exception(f"Unrecognized date format, provided date: {ans}")
+                        Git_PKI_Exception(f"Unrecognized date: {ans}")
 
                 # make RevokeIdentityRequest
                 revoke_file = Path(f"{self.__git.identity_dir}/{name}/{existing_key}_revoked")
                 mkdir(revoke_file.parent)
                 with open(revoke_file, 'w') as f:
                     f.write(str(revocation_timestamp))
-                self.__git.push_branch(f"{name}/{existing_key}_revoked", f"Revoke key {name}/{existing_key}_revoked")
+                self.__git.push_branch(f"{name}/{existing_key}_revoked", f"Revoke key {name}/{existing_key}")
 
         fingerprint = self.__gpg.generate_key(name, email, description, passphrase=passphrase)
         if fingerprint is None:
@@ -120,8 +120,6 @@ class GPKI:
         self.__gpg.encrypt(recipient, signatory, source, target, passphrase)
 
     def decrypt(self, source, target, passphrase=None, update=False):
-        priv_keys = list(self.__gpg.private_keys_list())
-        pub_keys = list(self.__gpg.public_keys_list())
         if update:
             self.__git.pull('master')
         if file_exists(target):
@@ -141,10 +139,10 @@ class GPKI:
         else:
             print(f"Specified source file: {source} was not found, aborting.")
             return
-        key = self.__gpg.get_key_by_id(recipient[0])
+        key = self.__gpg.get_private_key_by_id(recipient[0])
         if key is None:
-            raise Git_PKI_Exception("Could not determine message recipient, try to update keys with `git pki update` first.")
-        if not passphrase:
+            raise Git_PKI_Exception("Could not find private key to decrypt message. Are you correct recipient?")
+        if passphrase is None:
             passphrase = getpass.getpass(f"Specify passphrase for {key.name}: ")
 
         verification = self.__gpg.verify(source, passphrase)
@@ -152,8 +150,6 @@ class GPKI:
         if self.is_key_revoked(key) and self.get_revocation_time(key) < float(verification.timestamp):
             raise Git_PKI_Exception("Could not decrypt message signed with revoked key and message was signed after revocation time.")
 
-        if not passphrase:
-            passphrase = getpass.getpass(f"Specify passphrase for {key.name}: ")
         self.__gpg.decrypt(source, target, passphrase)
 
     def import_keys(self, files):
@@ -338,7 +334,6 @@ class GPKI:
         self.__git.merge(request.branch.full_name)
         self.__git.push('master')
         self.__git.remove_remote_branch(request.branch.name)
-        print("Done.")
 
     def merge_revoked(self):
         self.__git.fetch()

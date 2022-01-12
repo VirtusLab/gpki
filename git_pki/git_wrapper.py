@@ -69,7 +69,7 @@ class Git:
         shell(self.root_dir, f"git add {path}")
 
     def list_branches_unmerged_to_remote_counterpart_of(self, branch):
-        raw = shell(self.root_dir, f"git branch -r --no-merged origin/{branch}").splitlines()
+        raw = shell(self.root_dir, f"git branch --remotes --no-merged origin/{branch}").splitlines()
         strip = lambda line: line.strip()
         to_tuple = lambda branch: Request(branch, self.__commit_title(branch))
         return map(to_tuple, map(strip, raw))
@@ -119,14 +119,14 @@ class Git:
 
     def get_request(self, request):
         if "import" in request.branch:
-            return self.get_import_request(request)
+            return self.parse_import_request(request)
         else:
             if 'revoke' in request.branch:
-                return self.get_revoke_identity_request(request)
+                return self.parse_revokeidentity_request(request)
             else:
-                return self.get_add_identity_request(request)
+                return self.parse_addidentity_request(request)
 
-    def get_add_identity_request(self, request):
+    def parse_addidentity_request(self, request):
         name = request.branch.split('/')[-2]
         fingerprint = request.branch.split('/')[-1]
         branch = Branch('origin', '/'.join([name, fingerprint]), request.branch)
@@ -135,7 +135,7 @@ class Git:
                                   fingerprint,
                                   self.path_to(f'identities/{name}/{fingerprint}'))
 
-    def get_revoke_identity_request(self, request):
+    def parse_revokeidentity_request(self, request):
         name = request.branch.split('/')[-2]
         fingerprint_revoked = request.branch.split('/')[-1]
         fingerprint = fingerprint_revoked.split('_')[0]
@@ -146,7 +146,7 @@ class Git:
                                      self.path_to(f'identities/{name}/{fingerprint}_revoked'))
 
 
-    def get_import_request(self, request):
+    def parse_import_request(self, request):
         import_hash = request.branch.split('/')[-1]
         branch = Branch('origin', '/'.join(['import', import_hash]), request.branch)
         return ImportRequest(branch, import_hash)
