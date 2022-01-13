@@ -432,15 +432,10 @@ class GPKI:
                 if "revoke" in file:
                     continue
                 identity_path = os.path.join(root, file)
-                revoked_path = identity_path + "_revoked"
-                if not os.path.exists(revoked_path):
-                    with open(identity_path, "rb") as f:
-                        self.__gpg.import_public_key(f.read())
-                        if gpg_wrapper.verbose:
-                            print(f"Loaded key: name: {os.path.dirname(identity_path).split('/')[-1]}, fingerprint: {file}")
-                else:
-                    if gpg_wrapper.verbose:
-                        print(f"Skipped key: name: {os.path.dirname(identity_path).split('/')[-1]}, fingerprint: {file}, reason: revoked")
+                with open(identity_path, "rb") as f:
+                    self.__gpg.import_public_key(f.read())
+                if gpg_wrapper.verbose:
+                    print(f"Loaded key: name: {os.path.dirname(identity_path).split('/')[-1]}, fingerprint: {file}")
         print("Successfully loaded all valid keys.")
 
 
