@@ -423,6 +423,27 @@ class GPKI:
             return datetime.strptime('2000-01-01 00:00:00+00:00', '%Y-%m-%d %H:%M:%S%z')
 
 
+    def update(self):
+        self.__git.checkout('master')
+        self.__git.pull('master')
+
+        for root, dirs, files in os.walk(os.path.join(self.__git.root_dir, 'identities')):
+            for file in files:
+                if "revoke" in file:
+                    continue
+                identity_path = os.path.join(root, file)
+                revoked_path = identity_path + "_revoked"
+                if not os.path.exists(revoked_path):
+                    with open(identity_path, "rb") as f:
+                        self.__gpg.import_public_key(f.read())
+                        if gpg_wrapper.verbose:
+                            print(f"Loaded key: name: {os.path.dirname(identity_path).split('/')[-1]}, fingerprint: {file}")
+                else:
+                    if gpg_wrapper.verbose:
+                        print(f"Skipped key: name: {os.path.dirname(identity_path).split('/')[-1]}, fingerprint: {file}, reason: revoked")
+        print("Successfully loaded all valid keys.")
+
+
 def create_gpki_parser():
     common_args_parser = argparse.ArgumentParser(
         prog='git pki', argument_default=argparse.SUPPRESS, add_help=False)
@@ -509,6 +530,13 @@ def create_gpki_parser():
         add_help=False,
         parents=[common_args_parser])
 
+    subparsers.add_parser(
+        'update',
+        argument_default=argparse.SUPPRESS,
+        usage=argparse.SUPPRESS,
+        add_help=False,
+        parents=[common_args_parser])
+
     return cli_parser
 
 
@@ -536,6 +564,8 @@ def launch(parsed_cli):
         gpki.list_signatories()
     elif cmd == 'review':
         gpki.review_requests()
+    elif cmd == 'update':
+        gpki.update()
     else:
         # Some help should be printed here
         raise Git_PKI_Exception(f"Command {cmd} is not a valid git-pki command.")
