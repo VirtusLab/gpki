@@ -102,7 +102,7 @@ class GnuPGHandler:
         else:
             print(f"Decrypted data saved in {target}")
 
-    def verify(self, source, passphrase):
+    def verify_signature(self, source, passphrase):
         if os.path.isfile(source):
             with open(source, "rb") as source_file:
                 result = self.gpg.decrypt_file(source_file, output=None, passphrase=passphrase)
@@ -135,13 +135,15 @@ class GnuPGHandler:
 
     @staticmethod
     def parse_verification(sig_info):
-        sig_hash = list(sig_info.keys())[0]
-        timestamp = sig_info[sig_hash]['timestamp']
-        signatory_fingerprint = sig_info[sig_hash]['fingerprint']
-        signatory_name = sig_info[sig_hash]['username']
-        expiry = sig_info[sig_hash]['expiry']
-        status = sig_info[sig_hash]['status']
-        return SignatureVerification(timestamp, signatory_fingerprint, signatory_name, expiry, status)
+        signatories = []
+        for sig_hash in sig_info.keys():
+            timestamp = sig_info[sig_hash]['timestamp']
+            signatory_fingerprint = sig_info[sig_hash]['fingerprint']
+            signatory_name = sig_info[sig_hash]['username']
+            expiry = sig_info[sig_hash]['expiry']
+            status = sig_info[sig_hash]['status']
+            signatories.append(SignatureVerification(timestamp, signatory_fingerprint, signatory_name, expiry, status))
+        return signatories
 
     @staticmethod
     def __key_parse_date(key, field):
@@ -152,4 +154,8 @@ class GnuPGHandler:
 
     def get_private_key_by_id(self, keyid):
         keys = self.gpg.list_keys(True, keys=keyid)
+        return self.parse_key(keys[0]) if keys else None
+
+    def get_public_key_by_id(self, keyid):
+        keys = self.gpg.list_keys(False, keys=keyid)
         return self.parse_key(keys[0]) if keys else None

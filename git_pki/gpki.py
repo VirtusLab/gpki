@@ -87,6 +87,7 @@ class GPKI:
         print(key)
         # TODO (#24): maybe find a way to revert changes if PR gets rejected ?
         #  fetch --prune, then check which branch is present locally and not on remote, then remove keys from selected branches
+        #  move to update method and add flag to `update` <keep-rejected-keys>
 
     def list_signatories(self):
         print("fingerprint                              created-on expires-on\tidentity\temail\tdescription")
@@ -145,12 +146,36 @@ class GPKI:
         if passphrase is None:
             passphrase = getpass.getpass(f"Specify passphrase for {key.name}: ")
 
-        verification = self.__gpg.verify(source, passphrase)
-
-        if self.is_key_revoked(key) and self.get_revocation_time(key) < float(verification.timestamp):
-            raise Git_PKI_Exception("Could not decrypt message signed with revoked key and message was signed after revocation time.")
-
+        self.verify_message(source, passphrase, update)
         self.__gpg.decrypt(source, target, passphrase)
+
+    def verify_message(self, message, passphrase, update):
+        signature_valid_list = []
+        signature_verification = self.__gpg.verify_signature(message, passphrase)
+        for signature in signature_verification:
+            key = self.__gpg.get_public_key_by_id(signature.signatory_fingerprint)
+            if key is None:
+                if update:
+                    raise Git_PKI_Exception("Could not verify message: signatory from outside organisation.")
+                else:
+                    self.__git.pull("master")  # TODO: replace with call to update method when available
+                    key = self.__gpg.get_public_key_by_id(signature.signatory_fingerprint)
+                    if key is None:
+                        raise Git_PKI_Exception("Could not verify message: signatory from outside organisation.")
+
+            if self.is_key_revoked(key) and self.get_revocation_time(key) < float(signature.timestamp):
+                signature_valid_list.append(False)
+            else:
+                signature_valid_list.append(True)
+
+        if all(signature_valid_list):
+            return
+        elif any(signature_valid_list):
+            if input("Message was signed with multiple keys, and one of them is revoked, proceed? [yN]\n").lower() != 'y':
+                raise Git_PKI_Exception("Operation aborted by user.")
+        else:
+            raise Git_PKI_Exception(
+                "Could not decrypt message signed with revoked key and message was signed after revocation time.")
 
     def import_keys(self, files):
         if not files:
@@ -344,14 +369,13 @@ class GPKI:
             if isinstance(request, RevokeIdentityRequest):
                 if self.__git.is_mergeable_to('master', request.branch.full_name):
                     self.merge_changes(request)
-                    couterbranch_candidate = request.branch.name.replace('_revoked', '')
+                    couterbranch_candidate = request.branch.full_name.replace('_revoked', '')
                     try:
-                        self.__git.remove_remote_branch(couterbranch_candidate)  # it should rather automerge counterbranches also
+                        self.__git.merge(couterbranch_candidate)
                     except EnvironmentError:
                         pass
                 else:
-                    print(f"Error: Cannot automerge branch {request.branch.name}")  # Maybe raise an exception here
-
+                    print(f"Error: Cannot automerge branch {request.branch.name}")
 
     def is_key_expired(self, key):
         if not key:
