@@ -157,5 +157,5 @@ class GnuPGHandler:
         return self.parse_key(keys[0]) if keys else None
 
     def get_public_key_by_id(self, keyid):
-        keys = self.gpg.list_keys(False, keys=keyid)
-        return self.parse_key(keys[0]) if keys else None
+        keys = list(self.public_keys_list(keyid))
+        return keys[0] if keys else None

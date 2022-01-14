@@ -149,13 +149,14 @@ class GPKI:
         self.verify_message(source, passphrase, update)
         self.__gpg.decrypt(source, target, passphrase)
 
-    def verify_message(self, message, passphrase, update):
-        signature_valid_list = []
+    def verify_message(self, message, passphrase, updated):
+        valid_key_list = []
+        revoked_key_list = []
         signature_verification = self.__gpg.verify_signature(message, passphrase)
         for signature in signature_verification:
             key = self.__gpg.get_public_key_by_id(signature.signatory_fingerprint)
             if key is None:
-                if update:
+                if updated:
                     raise Git_PKI_Exception("Could not verify message: signatory from outside organisation.")
                 else:
                     self.__git.pull("master")  # TODO: replace with call to update method when available
@@ -164,14 +165,14 @@ class GPKI:
                         raise Git_PKI_Exception("Could not verify message: signatory from outside organisation.")
 
             if self.is_key_revoked(key) and self.get_revocation_time(key) < float(signature.timestamp):
-                signature_valid_list.append(False)
+                revoked_key_list.append(key)
             else:
-                signature_valid_list.append(True)
+                valid_key_list.append(key)
 
-        if all(signature_valid_list):
+        if len(revoked_key_list) == 0:
             return
-        elif any(signature_valid_list):
-            if input("Message was signed with multiple keys, and one of them is revoked, proceed? [yN]\n").lower() != 'y':
+        elif len(valid_key_list) != 0:
+            if input(f"Message signed with revoked keys: {' '.join([key.name for key in revoked_key_list])}. Proceed anyways? [yN]\n").lower() != 'y':
                 raise Git_PKI_Exception("Operation aborted by user.")
         else:
             raise Git_PKI_Exception(
