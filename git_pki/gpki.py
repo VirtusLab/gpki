@@ -3,7 +3,6 @@ import argparse
 import os
 import sys
 import tempfile
-import time
 
 import getpass
 import iterfzf
@@ -122,7 +121,7 @@ class GPKI:
 
     def decrypt(self, source, target, passphrase=None, update=False):
         if update:
-            self.__git.pull('master')
+            self.update()
         if file_exists(target):
             if input(f"Target file already exist, do you want to overwrite? [yN] ").lower() != 'y':
                 return
@@ -159,7 +158,7 @@ class GPKI:
                 if updated:
                     raise Git_PKI_Exception("Could not verify message: signatory from outside organisation.")
                 else:
-                    self.__git.pull("master")  # TODO: replace with call to update method when available
+                    self.update()
                     key = self.__gpg.get_public_key_by_id(signature.signatory_fingerprint)
                     if key is None:
                         raise Git_PKI_Exception("Could not verify message: signatory from outside organisation.")
