@@ -7,7 +7,7 @@ import time
 
 import getpass
 import iterfzf
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import git_pki.gpg_wrapper
@@ -62,10 +62,10 @@ class GPKI:
                 self.__gpg.remove_public_key(existing_key)
                 ans = input("Specify expiration time in format YYYY-MM-DDTHH:mm:ss or leave empty to take current timestamp.")
                 if ans == '':
-                    revocation_timestamp = time.time()
+                    revocation_timestamp = datetime.now(timezone.utc).replace(tzinfo=timezone.utc).strftime('%Y-%m-%d %H:%M:%S%z')
                 else:
                     try:
-                        revocation_timestamp = datetime.fromisoformat(ans).timestamp()
+                        revocation_timestamp = datetime.fromisoformat(ans).replace(tzinfo=timezone.utc).strftime('%Y-%m-%d %H:%M:%S%z')
                     except ValueError:
                         Git_PKI_Exception(f"Unrecognized date: {ans}")
 
@@ -73,7 +73,7 @@ class GPKI:
                 revoke_file = Path(f"{self.__git.identity_dir}/{name}/{existing_key}_revoked")
                 mkdir(revoke_file.parent)
                 with open(revoke_file, 'w') as f:
-                    f.write(str(revocation_timestamp))
+                    f.write(revocation_timestamp)
                 self.__git.push_branch(f"{name}/{existing_key}_revoked", f"Revoke key {name}/{existing_key}")
 
         fingerprint = self.__gpg.generate_key(name, email, description, passphrase=passphrase)
@@ -164,7 +164,7 @@ class GPKI:
                     if key is None:
                         raise Git_PKI_Exception("Could not verify message: signatory from outside organisation.")
 
-            if self.is_key_revoked(key) and self.get_revocation_time(key) < float(signature.timestamp):
+            if self.is_key_revoked(key) and self.get_revocation_time(key) < datetime.fromtimestamp(float(signature.timestamp), tz=timezone.utc):
                 revoked_key_list.append(key)
             else:
                 valid_key_list.append(key)
@@ -418,9 +418,10 @@ class GPKI:
         path = self.__git.path_to(os.path.join('identities', key.name, key.fingerprint + '_revoked'))
         if os.path.isfile(path):
             with open(path, 'r') as revoke_file:
-                return float(revoke_file.read().strip())
+                return datetime.strptime(revoke_file.read().strip(), '%Y-%m-%d %H:%M:%S%z')
         else:
-            return 0
+            return datetime.strptime('2000-01-01 00:00:00+00:00', '%Y-%m-%d %H:%M:%S%z')
+
 
 def create_gpki_parser():
     common_args_parser = argparse.ArgumentParser(
