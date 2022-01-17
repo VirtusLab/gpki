@@ -105,10 +105,11 @@ class GPKI:
             if input(f"Target file already exist, do you want to overwrite? [yN] ").lower() != 'y':
                 return
         available_recipients = map(format_key, self.__gpg.public_keys_list())
-        selection = iterfzf.iterfzf(available_recipients, prompt="Select recipient: ")
+        selection = iterfzf.iterfzf(available_recipients, prompt="Select recipients (use tab to selected entry): ", multi=True)
         if selection is None:
             return
-        recipient = selection.split()[0]
+
+        recipients = [item.split()[0] for item in selection]
 
         available_signatories = map(format_key, self.__gpg.private_keys_list())
         selection = iterfzf.iterfzf(available_signatories, prompt="Select signatory or press ctrl+d to not sign ")
@@ -117,7 +118,7 @@ class GPKI:
         if not passphrase:
             passphrase = getpass.getpass(f"Specify passphrase for [{selection[0]}]: ")
 
-        self.__gpg.encrypt(recipient, signatory, source, target, passphrase)
+        self.__gpg.encrypt(recipients, signatory, source, target, passphrase)
 
     def decrypt(self, source, target, passphrase=None, update=False):
         if update:
@@ -132,18 +133,25 @@ class GPKI:
             for line in sys.stdin:
                 data.append(line)
             source = "".join(data)
-            recipient = self.__gpg.get_recipients_from_message(source)
+            recipients = self.__gpg.get_recipients_from_message(source)
         elif os.path.isfile(source):
             with open(source, 'rb') as src_file:
-                recipient = self.__gpg.get_recipients_from_file(src_file)
+                recipients = self.__gpg.get_recipients_from_file(src_file)
         else:
             print(f"Specified source file: {source} was not found, aborting.")
             return
-        key = self.__gpg.get_private_key_by_id(recipient[0])
-        if key is None:
+
+        # Check if we have at least one private key to decrypt message
+        rkey = None
+        for rec in recipients[::-1]:
+            rkey = self.__gpg.get_private_key_by_id(rec)
+            if rkey is not None:
+                break
+
+        if rkey is None:
             raise Git_PKI_Exception("Could not find private key to decrypt message. Are you correct recipient?")
         if passphrase is None:
-            passphrase = getpass.getpass(f"Specify passphrase for {key.name}: ")
+            passphrase = getpass.getpass(f"Specify passphrase for {rkey.name}: ")
 
         self.verify_message(source, passphrase, update)
         self.__gpg.decrypt(source, target, passphrase)

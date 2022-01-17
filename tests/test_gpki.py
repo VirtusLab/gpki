@@ -17,8 +17,8 @@ from git_pki.git_wrapper import Git
 from git_pki.utils import shell
 
 
-def mock_iterfzf(base_container, prompt=""):
-    return list(base_container)[0]
+def mock_iterfzf(base_container, prompt="", multi=False):
+    return list(base_container) if multi else list(base_container)[0]
 
 
 def mock_getpass(prompt):
