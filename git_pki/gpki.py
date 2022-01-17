@@ -100,14 +100,17 @@ class GPKI:
             # TODO (#25): align the text correctly
             print(f"{key}")
 
-    def encrypt(self, source, target, passphrase=None):
+    def encrypt(self, source, target, passphrase=None, select_all_recipients=False):
         if target is not None and os.path.isfile(target):
             if input(f"Target file already exist, do you want to overwrite? [yN] ").lower() != 'y':
                 return
-        available_recipients = map(format_key, self.__gpg.public_keys_list())
-        selection = iterfzf.iterfzf(available_recipients, prompt="Select recipients (use tab to selected entry): ", multi=True)
-        if selection is None:
-            return
+        available_recipients = list(map(format_key, self.__gpg.public_keys_list()))
+        if select_all_recipients:
+            selection = available_recipients
+        else:
+            selection = iterfzf.iterfzf(available_recipients, prompt="Select recipients (use tab to selected entry): ", multi=True)
+            if selection is None:
+                return
 
         recipients = [item.split()[0] for item in selection]
 
@@ -472,6 +475,7 @@ def create_gpki_parser():
     encrypt_parser.add_argument('--input', '-i', default=None)
     encrypt_parser.add_argument('--output', '-o', default=None)
     encrypt_parser.add_argument('--password', '-p', default=None)
+    encrypt_parser.add_argument('--all', '-a', action='store_true', default=False)
 
     decrypt_parser = subparsers.add_parser(
         'decrypt',
@@ -551,7 +555,7 @@ def launch(parsed_cli):
     if cmd == 'decrypt':
         gpki.decrypt(parsed_cli.input, parsed_cli.output, parsed_cli.password, parsed_cli.update)
     elif cmd == 'encrypt':
-        gpki.encrypt(parsed_cli.input, parsed_cli.output, parsed_cli.password)
+        gpki.encrypt(parsed_cli.input, parsed_cli.output, parsed_cli.password, parsed_cli.all)
     elif cmd == 'identity':
         if 'name' not in parsed_cli:
             raise Git_PKI_Exception("Name is mandatory while creating new identity.")

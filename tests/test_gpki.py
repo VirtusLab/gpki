@@ -454,3 +454,4 @@ class GitPKI_Tester(TestCase):
         self.assertNotEqual(key_difference[0].fingerprint, initial_keys[0].fingerprint)
         self.assertNotEqual(key_difference[0], initial_keys[0])
 
+    
