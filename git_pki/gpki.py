@@ -55,25 +55,7 @@ class GPKI:
             response = input(f"Replace existing identity of {existing_key}? [yN] ")
             if response.lower() != "y":
                 return
-            passphrase = getpass.getpass(f"Specify passphrase for the existing key of [{name}]: ")
-            self.__gpg.remove_private_key(existing_key, passphrase)
-            if input("Invalidate previous public key? [yN]\n").lower() == "y":
-                self.__gpg.remove_public_key(existing_key)
-                ans = input("Specify expiration time in format YYYY-MM-DDTHH:mm:ss or leave empty to take current timestamp.")
-                if ans == '':
-                    revocation_timestamp = datetime.now(timezone.utc).replace(tzinfo=timezone.utc).strftime('%Y-%m-%d %H:%M:%S%z')
-                else:
-                    try:
-                        revocation_timestamp = datetime.fromisoformat(ans).replace(tzinfo=timezone.utc).strftime('%Y-%m-%d %H:%M:%S%z')
-                    except ValueError:
-                        Git_PKI_Exception(f"Unrecognized date: {ans}")
-
-                # make RevokeIdentityRequest
-                revoke_file = Path(f"{self.__git.identity_dir}/{name}/{existing_key}_revoked")
-                mkdir(revoke_file.parent)
-                with open(revoke_file, 'w') as f:
-                    f.write(revocation_timestamp)
-                self.__git.push_branch(f"{name}/{existing_key}_revoked", f"Revoke key {name}/{existing_key}")
+            self.revoke(pkey_name=existing_key)
 
         fingerprint = self.__gpg.generate_key(name, email, description, passphrase=passphrase)
         if fingerprint is None:
@@ -87,6 +69,39 @@ class GPKI:
         # TODO (#24): maybe find a way to revert changes if PR gets rejected ?
         #  fetch --prune, then check which branch is present locally and not on remote, then remove keys from selected branches
         #  move to update method and add flag to `update` <keep-rejected-keys>
+
+    def revoke(self, pkey_name=None):
+        if pkey_name is None:
+            available_signatories = map(format_key, self.__gpg.private_keys_list())
+            selection = iterfzf.iterfzf(available_signatories, prompt="Select private key to revoke ")
+            to_revoke = None if selection is None else selection.split()[0]
+            if to_revoke is None:
+                return
+            pkey = self.__gpg.get_private_key_by_id(to_revoke)
+        else:
+            pkey = self.__gpg.get_private_key_by_id(pkey_name)
+
+        passphrase = getpass.getpass(f"Specify passphrase for the existing key of [{pkey.name}]: ")
+        self.__gpg.remove_private_key(pkey.fingerprint, passphrase)
+        if input("Invalidate previous public key? [yN]\n").lower() == "y":  # remove this question, it's pointless to have public key when nobody has private key
+            self.__gpg.remove_public_key(pkey.fingerprint)
+            ans = input("Specify expiration time in format YYYY-MM-DDTHH:mm:ss or leave empty to take current timestamp.")
+            if ans == '':
+                revocation_timestamp = datetime.now(timezone.utc).replace(tzinfo=timezone.utc).strftime(
+                    '%Y-%m-%d %H:%M:%S%z')
+            else:
+                try:
+                    revocation_timestamp = datetime.fromisoformat(ans).replace(tzinfo=timezone.utc).strftime(
+                        '%Y-%m-%d %H:%M:%S%z')
+                except ValueError:
+                    Git_PKI_Exception(f"Unrecognized date: {ans}")
+
+            # make RevokeIdentityRequest
+            revoke_file = Path(f"{self.__git.identity_dir}/{pkey.name}/{pkey.fingerprint}_revoked")
+            mkdir(revoke_file.parent)
+            with open(revoke_file, 'w') as f:
+                f.write(revocation_timestamp)
+            self.__git.push_branch(f"{pkey.name}/{pkey.fingerprint}_revoked", f"Revoke key {pkey.name}/{pkey.fingerprint}")
 
     def list_signatories(self):
         print("fingerprint                              created-on expires-on\tidentity\temail\tdescription")
@@ -543,6 +558,13 @@ def create_gpki_parser():
         add_help=False,
         parents=[common_args_parser])
 
+    subparsers.add_parser(
+        'revoke',
+        argument_default=argparse.SUPPRESS,
+        usage=argparse.SUPPRESS,
+        add_help=False,
+        parents=[common_args_parser])
+
     return cli_parser
 
 
@@ -572,6 +594,8 @@ def launch(parsed_cli):
         gpki.review_requests()
     elif cmd == 'update':
         gpki.update()
+    elif cmd == 'revoke':
+        gpki.revoke()
     else:
         # Some help should be printed here
         raise Git_PKI_Exception(f"Command {cmd} is not a valid git-pki command.")
