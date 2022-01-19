@@ -550,3 +550,59 @@ class GitPKI_Tester(TestCase):
         relevant_message = raw_output.split('\n')[-2]
         self.assertIn(initial_message, raw_output)
         self.assertEqual(initial_message, relevant_message)
+
+    @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
+    @patch('iterfzf.iterfzf', mock_iterfzf)  # take first and only signatory
+    def test_revert_pr_add_identity(self):
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            test_dir = GitPKI_Tester.get_temp_directory()
+            gpki = GPKI(test_dir)
+            gpg_wrapped = git_pki.gpg_wrapper.GnuPGHandler(test_dir + "/vault/private")
+            gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
+
+        private_keys = list(gpg_wrapped.private_keys_list())
+        self.assertTrue(len(private_keys) == 1)
+
+        # now let's reject our identity
+        with patch('builtins.input', side_effect=[0, 'n', 'y']) as _:
+            gpki.review_requests()
+
+        private_keys_after_review = list(gpg_wrapped.private_keys_list())
+        self.assertEqual(private_keys, private_keys_after_review)
+
+        gpki.update()
+
+        # expect empty list
+        final_private_keys = list(gpg_wrapped.private_keys_list())
+
+        self.assertTrue(len(final_private_keys) == 0)
+
+    @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
+    @patch('iterfzf.iterfzf', mock_iterfzf)  # take first and only signatory
+    def test_revert_pr_import(self):
+        root_dir = os.path.abspath(__file__)
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            test_dir = GitPKI_Tester.get_temp_directory()
+            gpki = GPKI(test_dir)
+            gpg_wrapped = git_pki.gpg_wrapper.GnuPGHandler(test_dir + "/vault/private")
+
+        with patch('builtins.input', return_value='y') as _:
+            gpki.import_keys([root_dir.replace('test_gpki.py', 'tester_exported_multiple.txt')])
+
+        public_keys = list(gpg_wrapped.public_keys_list())
+        self.assertTrue(len(public_keys) == 2)
+        self.assertEqual([key.fingerprint for key in public_keys], ['bff0a80ce6b1aca266e017b134ed88b13c45a6ef', '5e42d830dcf16917dc7179bd196d044b1fdcc3e6'])
+
+        # now let's reject our import request
+        with patch('builtins.input', side_effect=[0, 'n', 'y']) as _:
+            gpki.review_requests()
+
+        public_keys_after_review = list(gpg_wrapped.public_keys_list())
+        self.assertEqual(public_keys, public_keys_after_review)
+
+        gpki.update()
+
+        # expect empty list
+        final_private_keys = list(gpg_wrapped.private_keys_list())
+
+        self.assertTrue(len(final_private_keys) == 0)

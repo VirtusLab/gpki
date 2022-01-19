@@ -11,7 +11,7 @@ from pathlib import Path
 
 import git_pki.gpg_wrapper
 from git_pki import __version__
-from git_pki.custom_types import KeyChange, ImportRequest, RevokeIdentityRequest
+from git_pki.custom_types import AddIdentityRequest, KeyChange, ImportRequest, RevokeIdentityRequest, Request
 from git_pki.exceptions import Git_PKI_Exception
 from git_pki.git_wrapper import Git
 from git_pki.utils import file_exists, format_key, mkdir, read_multiline_string, sha1_encode
@@ -357,7 +357,7 @@ class GPKI:
         except ValueError:
             raise Git_PKI_Exception("Please pass the integer value to select request.")
 
-        request = git.get_request(unmerged[selected])
+        request = git.get_specified_request(unmerged[selected])
         if not git.is_mergeable_to('master', request.branch.full_name):
             print("Warning, cannot perform `git merge` automatically")
 
@@ -391,7 +391,7 @@ class GPKI:
         self.__git.pull('master')
         unmerged_branches = list(self.__git.list_branches_unmerged_to_remote_counterpart_of(self.__git.current_branch()))
         for branch in unmerged_branches:
-            request = self.__git.get_request(branch)
+            request = self.__git.get_specified_request(branch)
             if isinstance(request, RevokeIdentityRequest):
                 if self.__git.is_mergeable_to('master', request.branch.full_name):
                     self.merge_changes(request)
@@ -448,9 +448,10 @@ class GPKI:
             return datetime.strptime('2000-01-01 00:00:00+00:00', '%Y-%m-%d %H:%M:%S%z')
 
 
-    def update(self):
+    def update(self, keep_rejected_keys=False):
         self.__git.checkout('master')
-        self.__git.pull('master')
+        self.__git.fetch(prune=True)
+        self.__git.merge('origin/master')
 
         for root, dirs, files in os.walk(os.path.join(self.__git.root_dir, 'identities')):
             for file in files:
@@ -462,6 +463,38 @@ class GPKI:
                 if gpg_wrapper.verbose:
                     print(f"Loaded key: name: {os.path.dirname(identity_path).split('/')[-1]}, fingerprint: {file}")
         print("Successfully loaded all valid keys.")
+
+        remote_branches = [rbranch.replace('origin/', '') for rbranch in self.__git.get_remote_branches()]
+        branches_to_check = [lbranch for lbranch in self.__git.get_local_branches() if lbranch not in remote_branches]
+        for branch in branches_to_check:
+            if not self.__git.is_merged_to('master', branch):
+                if not keep_rejected_keys:
+                    self.__revert_pr(branch)
+                    self.__git.remove_local_branch(branch)
+
+    def __revert_pr(self, branch):
+        request = self.__git.get_specified_request(Request(branch, self.__git.commit_title(branch)))
+        if isinstance(request, RevokeIdentityRequest):
+            return
+        else:
+            try:
+                self.__git.checkout(request.branch.name)
+                if isinstance(request, AddIdentityRequest):
+                    keys_to_remove = self.__gpg.scan(request.file)
+                    passphrase = getpass.getpass(f"Specify passphrase to remove existing key of [{keys_to_remove[0].name}]: ")
+                    self.__gpg.remove_public_key(keys_to_remove[0].fingerprint)
+                    self.__gpg.remove_private_key(keys_to_remove[0].fingerprint, passphrase)
+
+                else:
+                    keys_to_remove = []
+                    for root, _, files in os.walk(self.__git.path_to(os.path.join('identities'))):
+                        for file in files:
+                            if file in request.fingerprints:
+                                keys_to_remove.extend(self.__gpg.scan(os.path.join(root, file)))
+                    for key in keys_to_remove:
+                        self.__gpg.remove_public_key(key.fingerprint)
+            finally:
+                self.__git.checkout('master')
 
 
 def create_gpki_parser():
@@ -604,7 +637,7 @@ def launch(parsed_cli):
 def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
-    parsed_cli = cli_parser.parse_args(args)
+    parsed_cli = cli_parser.parse_args(['update'])
     launch(parsed_cli)
 
 
