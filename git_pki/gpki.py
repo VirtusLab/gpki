@@ -584,12 +584,13 @@ def create_gpki_parser():
         add_help=False,
         parents=[common_args_parser])
 
-    subparsers.add_parser(
+    update_parser = subparsers.add_parser(
         'update',
         argument_default=argparse.SUPPRESS,
         usage=argparse.SUPPRESS,
         add_help=False,
         parents=[common_args_parser])
+    update_parser.add_argument('--keep-rejected-keys', action='store_true', default=False)
 
     subparsers.add_parser(
         'revoke',
@@ -626,7 +627,7 @@ def launch(parsed_cli):
     elif cmd == 'review':
         gpki.review_requests()
     elif cmd == 'update':
-        gpki.update()
+        gpki.update(parsed_cli.keep_rejected_keys)
     elif cmd == 'revoke':
         gpki.revoke()
     else:
@@ -637,7 +638,7 @@ def launch(parsed_cli):
 def main():
     args = sys.argv[1:]
     cli_parser: argparse.ArgumentParser = create_gpki_parser()
-    parsed_cli = cli_parser.parse_args(['update'])
+    parsed_cli = cli_parser.parse_args(args)
     launch(parsed_cli)
 
 
