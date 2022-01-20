@@ -61,14 +61,11 @@ class GPKI:
         if fingerprint is None:
             return
 
-        key = self.__gpg.export_public_key(name)
+        key = self.__gpg.export_public_key(fingerprint)
         file = Path(f"{self.__git.identity_dir}/{name}/{fingerprint}")
         self.__export_key(key, Path(file))
         self.__git.push_branch(f"{name}/{fingerprint}", f"Publish key {name}/{fingerprint}")
         print(key)
-        # TODO (#24): maybe find a way to revert changes if PR gets rejected ?
-        #  fetch --prune, then check which branch is present locally and not on remote, then remove keys from selected branches
-        #  move to update method and add flag to `update` <keep-rejected-keys>
 
     def revoke(self, pkey_name=None):
         if pkey_name is None:
@@ -388,7 +385,7 @@ class GPKI:
 
     def merge_revoked(self):
         self.__git.fetch()
-        self.__git.pull('master')
+        self.__git.merge('origin/master')
         unmerged_branches = list(self.__git.list_branches_unmerged_to_remote_counterpart_of(self.__git.current_branch()))
         for branch in unmerged_branches:
             request = self.__git.get_specified_request(branch)
