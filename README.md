@@ -32,3 +32,46 @@ of _GPKI_ it becomes as easy as installing it and maintaining a git repository (
 
 Examples might be: household/family networks or confidential team-members communication (e.g. sharing confidential
 memos)
+
+## Installation
+
+_GPKI_ is based on Python, Git and GnuPG, so make sure to have following installed:
+```
+python >= 3.6
+GnuPG >= 2.1
+Git >= 1.8
+```
+Install _GPKI_ directly from repository with a few commands:
+```
+git clone git@github.com:VirtusLab/gpki.git
+cd gpki
+python3 -m pip install -r requirements.txt
+python3 setup.py install --user
+```
+
+You are all set and ready to use _GPKI_ 
+
+### Getting started
+It's worth to mention, at this point Certificate Authority should already create git repository to keep users public keys.
+At first use, regardless which command is called, user will be asked to provide link to the git repository.
+Before encrypting messages, files and any other confidential stuff, there has to be created at least one `identity` 
+which is used to sign gpg messages.
+Create identity with:
+
+`gpki identity <name> [--email <email>] [--description <description>]`
+
+Apart from created gpg public/private key pair, new pull request to master branch has been opened. In order to receive 
+messages from other users, your `identity` has to be approved by CA and merged to master branch.
+
+To source all available recipients from repository, use:
+
+`gpki update`
+
+Encrypt message or file with:
+
+`gpki encrypt [--all/-a] [--input/-i <input_path>] [--output/-o <output_path>]`
+
+Decrypt message with:
+
+`gpki decrypt [--input/-i <input_path>] [--output/-o <output_path>] [--update/-u]`
+
