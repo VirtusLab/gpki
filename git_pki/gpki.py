@@ -48,7 +48,7 @@ class GPKI:
         self.__git.update(listener)
 
     def generate_identity(self, name, email, description, passphrase=None):
-        self.__git.checkout('master')
+        self.__git.checkout(self.__git.master_branch)
         existing_key = self.__gpg.private_key_fingerprint(name)
         if existing_key is not None:
             # If key exists, confirm removal of the private version and move public one to the archive
@@ -355,7 +355,7 @@ class GPKI:
             raise Git_PKI_Exception("Please pass the integer value to select request.")
 
         request = git.get_specified_request(unmerged[selected])
-        if not git.is_mergeable_to('master', request.branch.full_name):
+        if not git.is_mergeable_to(self.__git.master_branch, request.branch.full_name):
             print("Warning, cannot perform `git merge` automatically")
 
         changes = list(git.file_diff(request.branch.full_name))
@@ -380,17 +380,17 @@ class GPKI:
     def merge_changes(self, request):
         print(f'Merging branch {request.branch.name} into master...')
         self.__git.merge(request.branch.full_name)
-        self.__git.push('master')
+        self.__git.push(self.__git.master_branch)
         self.__git.remove_remote_branch(request.branch.name)
 
     def merge_revoked(self):
         self.__git.fetch()
-        self.__git.merge('origin/master')
+        self.__git.merge(f'origin/{self.__git.master_branch}')
         unmerged_branches = list(self.__git.list_branches_unmerged_to_remote_counterpart_of(self.__git.current_branch()))
         for branch in unmerged_branches:
             request = self.__git.get_specified_request(branch)
             if isinstance(request, RevokeIdentityRequest):
-                if self.__git.is_mergeable_to('master', request.branch.full_name):
+                if self.__git.is_mergeable_to(self.__git.master_branch, request.branch.full_name):
                     self.merge_changes(request)
                     couterbranch_candidate = request.branch.full_name.replace('_revoked', '')
                     try:
@@ -446,9 +446,9 @@ class GPKI:
 
 
     def update(self, keep_rejected_keys=False):
-        self.__git.checkout('master')
+        self.__git.checkout(self.__git.master_branch)
         self.__git.fetch(prune=True)
-        self.__git.merge('origin/master')
+        self.__git.merge(f'origin/{self.__git.master_branch}')
 
         for root, dirs, files in os.walk(os.path.join(self.__git.root_dir, 'identities')):
             for file in files:
@@ -464,7 +464,7 @@ class GPKI:
         remote_branches = [rbranch.replace('origin/', '') for rbranch in self.__git.get_remote_branches()]
         branches_to_check = [lbranch for lbranch in self.__git.get_local_branches() if lbranch not in remote_branches]
         for branch in branches_to_check:
-            if not self.__git.is_merged_to('master', branch):
+            if not self.__git.is_merged_to(self.__git.master_branch, branch):
                 if not keep_rejected_keys:
                     self.__revert_pr(branch)
                     self.__git.remove_local_branch(branch)
@@ -491,7 +491,7 @@ class GPKI:
                     for key in keys_to_remove:
                         self.__gpg.remove_public_key(key.fingerprint)
             finally:
-                self.__git.checkout('master')
+                self.__git.checkout(self.__git.master_branch)
 
 
 def create_gpki_parser():

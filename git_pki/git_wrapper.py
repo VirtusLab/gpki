@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List
 
 from git_pki.custom_types import AddIdentityRequest, ImportRequest, Branch, FileChange, PREVIOUS_BRANCH, Request, RevokeIdentityRequest
+from git_pki.exceptions import Git_Wrapper_Exception
 from git_pki.utils import mkdir, shell
 
 
@@ -11,6 +12,7 @@ class Git:
         self.root_dir = root_dir
         self.identity_dir = f"{root_dir}/identities"
         self.key_dir = f"{root_dir}/keys"
+        self.master_branch = ''
 
     def update(self, listener) -> List:
         if Path(f"{self.root_dir}/.git").is_dir():
@@ -41,6 +43,8 @@ class Git:
 
             for path in os.listdir(self.key_dir):
                 listener.key_added(path)
+
+        self.master_branch = self.get_master_or_main_branch()
 
     def push_branch(self, branch, message):
         # TODO (#13): recover on failure
@@ -152,9 +156,17 @@ class Git:
                                      fingerprint,
                                      self.path_to(f'identities/{name}/{fingerprint}_revoked'))
 
-
     def parse_import_request(self, request):
         import_hash = request.branch.split('/')[-1]
         fingerprints = [fp.strip() for fp in request.title.replace('Import keys ', '').split(', ')]
         branch = Branch('origin', '/'.join(['import', import_hash]), request.branch)
         return ImportRequest(branch, import_hash, fingerprints)
+
+    def get_master_or_main_branch(self):
+        remote_branches = [rbranch.replace('origin/', '') for rbranch in self.get_remote_branches()]
+        if 'master' in remote_branches:
+            return 'master'
+        elif 'main' in remote_branches:
+            return 'main'
+        else:
+            raise Git_Wrapper_Exception("Could not determine master/main branch for this repository")
