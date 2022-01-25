@@ -39,7 +39,7 @@ _GPKI_ is based on Python, Git and GnuPG, so make sure to have following install
 ```
 python >= 3.6
 GnuPG >= 2.1
-Git >= 1.8
+Git >= 2.3
 ```
 Install _GPKI_ directly from repository with a few commands:
 ```
@@ -53,7 +53,7 @@ You are all set and ready to use _GPKI_
 
 ### Getting started
 It's worth to mention, at this point Certificate Authority should already create git repository to keep users public keys.
-At first use, regardless which command is called, user will be asked to provide link to the git repository.
+At first use, regardless of command used, user is asked to provide link to the git repository.
 Before encrypting messages, files and any other confidential stuff, there has to be created at least one `identity` 
 which is used to sign gpg messages.
 Create identity with:
