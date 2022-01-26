@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Goal: Simple Public Key Infrastructure &mdash; gpki 1.0.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> gpki
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Goal: Simple Public Key Infrastructure</a><ul>
+<li><a class="reference internal" href="#design">Design</a><ul>
+<li><a class="reference internal" href="#identity">Identity</a></li>
+<li><a class="reference internal" href="#where-is-the-certificate-authority">Where is the Certificate Authority?</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#use-case">Use Case</a></li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">gpki</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Goal: Simple Public Key Infrastructure</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/overall_description.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="goal-simple-public-key-infrastructure">
+<span id="overall-description"></span><h1>Goal: Simple Public Key Infrastructure<a class="headerlink" href="#goal-simple-public-key-infrastructure" title="Permalink to this headline"></a></h1>
+<p>By storing <a class="reference external" href="https://en.wikipedia.org/wiki/Public-key_cryptography">Public Keys</a>  in a version controlled storage (like
+git), we can achieve a high level of automation in managing the network of trusted identities.</p>
+<dl class="simple">
+<dt><strong>GPKI</strong> is being designed to automate and simplify the management of such a network. It is responsible for:</dt><dd><ul class="simple">
+<li><p>registering identities within the network</p></li>
+<li><p>encrypting and decrypting messages from the network members</p></li>
+</ul>
+</dd>
+</dl>
+<section id="design">
+<h2>Design<a class="headerlink" href="#design" title="Permalink to this headline"></a></h2>
+<p><strong>GPKI</strong> leverages both git and gpg to provide its functionality. The system consists of two parts: private vault and
+public repository. Vault is a GPG keychain storing every private and public key while the public repository is where
+only the public keys end up for other members to see.</p>
+<section id="identity">
+<h3>Identity<a class="headerlink" href="#identity" title="Permalink to this headline"></a></h3>
+<p>Every identity is a tuple of (name, email, description), where names should allow easy identification of its owner. It
+is possible for any user to own multiple identities, which might be beneficial when contacting external entities or if
+one needs to manually partition the network. Although in most cases a single identity should be enough.</p>
+</section>
+<section id="where-is-the-certificate-authority">
+<h3>Where is the Certificate Authority?<a class="headerlink" href="#where-is-the-certificate-authority" title="Permalink to this headline"></a></h3>
+<p>The network is as secure as the git repository. New identities can only be added by the users with correct permissions,
+hence there is no need for an explicit CA signing keys. For example, one could rely on merging the commits signed by a
+trusted user.</p>
+</section>
+</section>
+<section id="use-case">
+<h2>Use Case<a class="headerlink" href="#use-case" title="Permalink to this headline"></a></h2>
+<p>Sometimes, people need to share with another person a message, which they would like to keep confidential. With the help
+of <strong>GPKI</strong> it becomes as easy as installing it and maintaining a git repository (e.g. on github).</p>
+<p>Examples might be: household/family networks or confidential team-members communication (e.g. sharing confidential
+memos)</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

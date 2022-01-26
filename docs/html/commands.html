@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Command Line Interface &mdash; gpki 1.0.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> gpki
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Command Line Interface</a><ul>
+<li><a class="reference internal" href="#decrypt">decrypt</a></li>
+<li><a class="reference internal" href="#encrypt">encrypt</a></li>
+<li><a class="reference internal" href="#export">export</a></li>
+<li><a class="reference internal" href="#identity">identity</a></li>
+<li><a class="reference internal" href="#import">import</a></li>
+<li><a class="reference internal" href="#recipients">recipients</a></li>
+<li><a class="reference internal" href="#review">review</a></li>
+<li><a class="reference internal" href="#revoke">revoke</a></li>
+<li><a class="reference internal" href="#signatories">signatories</a></li>
+<li><a class="reference internal" href="#update">update</a></li>
+<li><a class="reference internal" href="#version">version</a></li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">gpki</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Command Line Interface</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/commands.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="command-line-interface">
+<span id="commands"></span><h1>Command Line Interface<a class="headerlink" href="#command-line-interface" title="Permalink to this headline"></a></h1>
+<p>When <strong>GPKI</strong> is installed, it adds <code class="docutils literal notranslate"><span class="pre">gpki</span></code> command to command line.</p>
+<p><strong>GPKI</strong> commands:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="index.html#decrypt"><span class="std std-ref">decrypt</span></a>          – Decrypt message or file content</p></li>
+<li><p><a class="reference internal" href="index.html#encrypt"><span class="std std-ref">encrypt</span></a>          – Encrypt message or file content</p></li>
+<li><p><a class="reference internal" href="index.html#export"><span class="std std-ref">export</span></a>           – Exports selected keys into file or GPG public key block</p></li>
+<li><p><a class="reference internal" href="index.html#id4"><span class="std std-ref">identity</span></a>         – Create new identity</p></li>
+<li><p><a class="reference internal" href="index.html#import"><span class="std std-ref">import</span></a>           – Import public keys from file or GPG public key block</p></li>
+<li><p><a class="reference internal" href="index.html#recipients"><span class="std std-ref">recipients</span></a>       – List all available recipients</p></li>
+<li><p><a class="reference internal" href="index.html#review"><span class="std std-ref">review</span></a>           – Accept or reject new identities</p></li>
+<li><p><a class="reference internal" href="index.html#revoke"><span class="std std-ref">revoke</span></a>           – Revoke specified identity</p></li>
+<li><p><a class="reference internal" href="index.html#signatories"><span class="std std-ref">signatories</span></a>      – List all available signatories</p></li>
+<li><p><a class="reference internal" href="index.html#update"><span class="std std-ref">update</span></a>           – Source all public keys from repository</p></li>
+<li><p><a class="reference internal" href="index.html#version"><span class="std std-ref">version</span></a>          – Show version</p></li>
+</ul>
+<section id="decrypt">
+<span id="id1"></span><h2>decrypt<a class="headerlink" href="#decrypt" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki decrypt <span class="o">[</span>-o<span class="p">|</span>--output &lt;target_file&gt;<span class="o">]</span> <span class="o">[</span>-i<span class="p">|</span>--input &lt;input_file&gt;<span class="o">]</span> <span class="o">[</span>-u<span class="p">|</span>--update<span class="o">]</span>
+</pre></div>
+</div>
+<p>Decrypts message or file content into console or specified output file.
+If input file is not specified, user is asked to paste GPG message block into console.
+If output file is not provided, decrypted message is printed out to the console.
+It may happen that the message is signed with revoked key. In such a case, to make sure <code class="docutils literal notranslate"><span class="pre">gpki</span></code> operates on latest data from repository, it’s adviced to pass <code class="docutils literal notranslate"><span class="pre">-u/--update</span></code> flag.</p>
+<p>Note: both input and output path are relative by default, but there is possibility to pass absolute path.</p>
+<p><strong>Options:</strong></p>
+<dl class="option-list">
+<dt><kbd><span class="option">-o</span>, <span class="option">--output</span></kbd></dt>
+<dd><p>Specify target output file where decrypted message is written to.</p>
+</dd>
+<dt><kbd><span class="option">-i</span>, <span class="option">--input</span></kbd></dt>
+<dd><p>Specify source file, which content will be decrypted (must have GPG message block inside)</p>
+</dd>
+<dt><kbd><span class="option">-u</span>, <span class="option">--update</span></kbd></dt>
+<dd><p>updates GPG keyring with keys from the repository and removes revoked keys</p>
+</dd>
+</dl>
+</section>
+<section id="encrypt">
+<span id="id2"></span><h2>encrypt<a class="headerlink" href="#encrypt" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki encrypt <span class="o">[</span>-o<span class="p">|</span>--output &lt;target_file&gt;<span class="o">]</span> <span class="o">[</span>-i<span class="p">|</span>--input &lt;source_file&gt;<span class="o">]</span> <span class="o">[</span>-a<span class="p">|</span>--all<span class="o">]</span>
+</pre></div>
+</div>
+<p>Encrypts message or file content into GPG message block or into output file.
+If input file is not specified, user is asked to write message in console.
+If output file is not provided, encrypted message block is printed out to the console.
+Message recipients are interactively selected by user or all of them are selected if <code class="docutils literal notranslate"><span class="pre">-a/--all</span></code> flag is set.</p>
+<p>Note: both input and output path are relative by default, but there is possibility to pass absolute path.</p>
+<p><strong>Options:</strong></p>
+<dl class="option-list">
+<dt><kbd><span class="option">-o</span>, <span class="option">--output</span></kbd></dt>
+<dd><p>Specify target output file where encrypted message is written to.</p>
+</dd>
+<dt><kbd><span class="option">-i</span>, <span class="option">--input</span></kbd></dt>
+<dd><p>Specify source file, which content will be encrypted.</p>
+</dd>
+<dt><kbd><span class="option">-a</span>, <span class="option">--all</span></kbd></dt>
+<dd><p>Selects all available recipients.</p>
+</dd>
+</dl>
+</section>
+<section id="export">
+<span id="id3"></span><h2>export<a class="headerlink" href="#export" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki <span class="nb">export</span> &lt;key_name_1 ... key_name_N&gt; <span class="o">[</span>-o<span class="p">|</span>--output &lt;target_file_path&gt;<span class="o">]</span>
+</pre></div>
+</div>
+<p>Exports selected public keys into file or GPG public key block.
+The exported public key block is printed to console even if output file is specified.</p>
+<p>Note: output target files is created in current working directory by default. Provide relative or absolute path to target file if necessary (may require privilege to create path).</p>
+<p><strong>Options:</strong></p>
+<dl class="option-list">
+<dt><kbd><span class="option">-o</span>, <span class="option">--output</span></kbd></dt>
+<dd><p>Specifies the output target file where selected keys are exported to.</p>
+</dd>
+</dl>
+</section>
+<section id="identity">
+<span id="id4"></span><h2>identity<a class="headerlink" href="#identity" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki identity &lt;name&gt; <span class="o">[</span>--email<span class="o">]</span> <span class="o">[</span>--description<span class="o">]</span>
+</pre></div>
+</div>
+<p>Creates new identity &lt;name&gt; for the user. Adds new private/public key pair into GPG keyring and pushes public key into git repository for Certificate Authority for a review under branch &lt;name&gt;/&lt;fingerprint&gt;.
+If user already has identity called &lt;name&gt;, user is asked whether the previous public key needs to be revoked.</p>
+<p>If optional <code class="docutils literal notranslate"><span class="pre">--email</span></code> or <code class="docutils literal notranslate"><span class="pre">--description</span></code> is provided, then those fields will be printed out when selecting recipients or signatory.</p>
+<p><strong>Options:</strong></p>
+<dl class="option-list">
+<dt><kbd><span class="option">--email</span></kbd></dt>
+<dd><p>Specifies email address associated with given identity</p>
+</dd>
+<dt><kbd><span class="option">--description</span></kbd></dt>
+<dd><p>Short description of identity, egz. purpose</p>
+</dd>
+</dl>
+</section>
+<section id="import">
+<span id="id5"></span><h2>import<a class="headerlink" href="#import" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki import <span class="o">[</span>-i<span class="p">|</span>--input &lt;file1 ... fileN&gt;<span class="o">]</span>
+</pre></div>
+</div>
+<p>Imports all public keys from GPG public key block or file(s), so later on those keys are available to use as recipients.
+If input files are not specified, user is asked to paste the GPG public key block.
+If at least one key from block/file is not imported successfully, then all keys from given block/file are treated as corrupted, and not added to GPG keyring.
+Prints import summary report divided into three sections: Succeeded, Unchanged and Failed imports.</p>
+<p>Note: provided files will be found only if they are placed in current working directory. If there is need to add files from different location, then relative path to the file must be specified.</p>
+<p><strong>Options:</strong></p>
+<dl class="option-list">
+<dt><kbd><span class="option">-i</span>, <span class="option">--input</span></kbd></dt>
+<dd><p>Specifies the file or files from which keys are going to be imported</p>
+</dd>
+</dl>
+</section>
+<section id="recipients">
+<span id="id6"></span><h2>recipients<a class="headerlink" href="#recipients" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki recipients
+</pre></div>
+</div>
+<p>Lists all available recipients.
+Note: use <code class="docutils literal notranslate"><span class="pre">update</span></code> command to source all recipients from the git repository.</p>
+</section>
+<section id="review">
+<span id="id7"></span><h2>review<a class="headerlink" href="#review" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki review
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">review</span></code> command is reserved for the Certificate Authority or someone empowered to make changes in master/main branch.
+At the beginning <code class="docutils literal notranslate"><span class="pre">review</span></code> command will merge all revoke requests into master.
+Later the command looks for unmerged new identities or import requests and lists them to the user.
+Certificate Authority can now decide which request to handle and make decision if requests should be merged to master/main branch or reject it.
+If requests gets rejected, then its branch is automatically removed from repository.</p>
+</section>
+<section id="revoke">
+<span id="id8"></span><h2>revoke<a class="headerlink" href="#revoke" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki revoke
+</pre></div>
+</div>
+<p>Lists all available signatories and lets the user choose which one to revoke. Once signatory is selected, pull request with revocation file is issued.
+After revocation of key, other users won’t be able to decrypt messages signed with revoked key, which is useful when it is know the key was compromised.</p>
+</section>
+<section id="signatories">
+<span id="id9"></span><h2>signatories<a class="headerlink" href="#signatories" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki signatories
+</pre></div>
+</div>
+<p>Lists all available signatories, all identities which private keys associated with are found in keyring.</p>
+</section>
+<section id="update">
+<span id="id10"></span><h2>update<a class="headerlink" href="#update" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki update
+</pre></div>
+</div>
+<p>Fetches the git repository in order to load all available public keys and also remove revoked keys from keyring.</p>
+<p><strong>Options:</strong></p>
+<dl class="option-list">
+<dt><kbd><span class="option">--keep-rejected-keys</span></kbd></dt>
+<dd><p>revoked public keys will not be removed from keyring</p>
+</dd>
+</dl>
+</section>
+<section id="version">
+<span id="id11"></span><h2>version<a class="headerlink" href="#version" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki --version
+</pre></div>
+</div>
+<p>Shows program version and exists.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

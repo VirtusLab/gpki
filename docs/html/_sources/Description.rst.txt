@@ -13,7 +13,7 @@ git), we can achieve a high level of automation in managing the network of trust
     * encrypting and decrypting messages from the network members
 
 Design
-------
+-----
 
 **GPKI** leverages both git and gpg to provide its functionality. The system consists of two parts: private vault and
 public repository. Vault is a GPG keychain storing every private and public key while the public repository is where
@@ -27,14 +27,14 @@ is possible for any user to own multiple identities, which might be beneficial w
 one needs to manually partition the network. Although in most cases a single identity should be enough.
 
 Where is the Certificate Authority?
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
 
 The network is as secure as the git repository. New identities can only be added by the users with correct permissions,
 hence there is no need for an explicit CA signing keys. For example, one could rely on merging the commits signed by a
 trusted user.
 
 Use Case
---------
+-------
 
 Sometimes, people need to share with another person a message, which they would like to keep confidential. With the help
 of **GPKI** it becomes as easy as installing it and maintaining a git repository (e.g. on github).

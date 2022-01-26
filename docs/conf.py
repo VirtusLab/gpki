@@ -19,7 +19,6 @@ import git_pki
 # -- Project information -----------------------------------------------------
 
 project = 'gpki'
-copyright = '2021-2022, Marek Żarnowski'
 authors = 'Marek Żarnowski, Piotr Ksel'
 
 # The full version, including alpha/beta/rc tags

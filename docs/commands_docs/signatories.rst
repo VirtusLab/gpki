@@ -1,7 +1,7 @@
 .. _signatories:
 
 signatories
-----------
+-----------
 **Usage:**
 
 .. code-block:: shell
