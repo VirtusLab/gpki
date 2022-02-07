@@ -22,8 +22,7 @@ one needs to manually partition the network. Although in most cases a single ide
 ### Where is the Certificate Authority?
 
 The key network is as secure as the git repository hosting the public key infrastructure. New identities can only be added by the users with correct permissions,
-hence there is no need for an explicit CA signing keys. For example, one could rely on merging the commits signed by a 
-trusted user.
+hence there is no need for an explicit CA signing keys.
 
 ## Use Case
 
