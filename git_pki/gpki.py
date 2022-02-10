@@ -3,7 +3,6 @@ import argparse
 import os
 import sys
 import tempfile
-import time
 
 import getpass
 import iterfzf
@@ -122,7 +121,7 @@ class GPKI:
 
     def decrypt(self, source, target, passphrase=None, update=False):
         if update:
-            self.__git.pull('master')
+            self.update()
         if file_exists(target):
             if input(f"Target file already exist, do you want to overwrite? [yN] ").lower() != 'y':
                 return
@@ -159,7 +158,7 @@ class GPKI:
                 if updated:
                     raise Git_PKI_Exception("Could not verify message: signatory from outside organisation.")
                 else:
-                    self.__git.pull("master")  # TODO: replace with call to update method when available
+                    self.update()
                     key = self.__gpg.get_public_key_by_id(signature.signatory_fingerprint)
                     if key is None:
                         raise Git_PKI_Exception("Could not verify message: signatory from outside organisation.")
@@ -337,15 +336,12 @@ class GPKI:
             print("Warning, cannot perform `git merge` automatically")
 
         changes = list(git.file_diff(request.branch.full_name))
-        reviewed = git.open_worktree(self.__review_dir, request.branch.full_name)
-        try:
+        with git.open_worktree(self.__review_dir, request.branch.full_name) as reviewed:
             for change in map(map_change, changes):
                 self.__run_checks(change, request, reviewed)
             print("Requested changes:")
             for change in map(map_change, changes):
                 print(change)
-        finally:
-            git.close_worktree(request.branch.full_name)
 
         msg = 'Approve this changes? Answer "y" to merge them.'
         if input(msg).lower() != 'y':
@@ -421,6 +417,20 @@ class GPKI:
                 return datetime.strptime(revoke_file.read().strip(), '%Y-%m-%d %H:%M:%S%z')
         else:
             return datetime.strptime('2000-01-01 00:00:00+00:00', '%Y-%m-%d %H:%M:%S%z')
+
+    def update(self):
+        self.__git.pull('master')
+
+        for root, dirs, files in os.walk(os.path.join(self.__git.root_dir, 'identities')):
+            for file in files:
+                if "revoke" in file:
+                    continue
+                identity_path = os.path.join(root, file)
+                with open(identity_path, "rb") as f:
+                    self.__gpg.import_public_key(f.read())
+                if gpg_wrapper.verbose:
+                    print(f"Loaded key: name: {os.path.dirname(identity_path).split('/')[-1]}, fingerprint: {file}")
+        print("Successfully loaded all valid keys.")
 
 
 def create_gpki_parser():
@@ -509,6 +519,13 @@ def create_gpki_parser():
         add_help=False,
         parents=[common_args_parser])
 
+    subparsers.add_parser(
+        'update',
+        argument_default=argparse.SUPPRESS,
+        usage=argparse.SUPPRESS,
+        add_help=False,
+        parents=[common_args_parser])
+
     return cli_parser
 
 
@@ -536,6 +553,8 @@ def launch(parsed_cli):
         gpki.list_signatories()
     elif cmd == 'review':
         gpki.review_requests()
+    elif cmd == 'update':
+        gpki.update()
     else:
         # Some help should be printed here
         raise Git_PKI_Exception(f"Command {cmd} is not a valid git-pki command.")

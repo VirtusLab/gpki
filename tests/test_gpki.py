@@ -10,6 +10,7 @@ from io import StringIO
 from unittest import TestCase
 from unittest.mock import patch
 
+import git_pki.gpg_wrapper
 from git_pki.exceptions import Git_PKI_Exception
 from git_pki.gpki import GPKI
 from git_pki.git_wrapper import Git
@@ -414,4 +415,42 @@ class GitPKI_Tester(TestCase):
                 with self.assertRaises(Git_PKI_Exception,
                                        msg='Could not decrypt message signed with revoked key and message was signed after revocation time.'):
                     gpki.decrypt(None, None)
+
+    @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
+    @patch('iterfzf.iterfzf', mock_iterfzf)  # in tests we got only one identity per test, so we can easily get the first one and move on
+    def test_update(self):
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            test_dir = GitPKI_Tester.get_temp_directory()
+            gpki = GPKI(test_dir)
+            gpg_wrapped = git_pki.gpg_wrapper.GnuPGHandler(test_dir + "/vault/private")
+            gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
+            gpki.generate_identity('tester2', 'tester2@test.com', 'empty description', passphrase='strong_password')
+            gpki.generate_identity('tester3', 'tester3@test.com', 'empty description', passphrase='strong_password')
+
+        initial_keys = list(gpg_wrapped.public_keys_list())
+        # approve all the keys
+        with patch('builtins.input', side_effect=[0, 'y', 0, 'y', 0, 'y']) as _:
+            for i in range(3):
+                gpki.review_requests()
+
+        # revoke first key and approve it
+        with patch('builtins.input', side_effect=['y', 'y', '2022-01-01']) as _:
+            gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
+        gpki.merge_revoked()
+
+        # remove all public keys from keyring
+        gpki.remove_keys([key.fingerprint for key in initial_keys])
+
+        # load again keys with `update` command
+        gpki.update()
+
+        final_keys = list(gpg_wrapped.public_keys_list())
+
+        # now the only difference between initial and final keys should "tester" key
+        key_difference = list(set(final_keys) - set(initial_keys))
+
+        self.assertEqual(len(key_difference), 1)
+        self.assertEqual(key_difference[0].name, initial_keys[0].name)
+        self.assertNotEqual(key_difference[0].fingerprint, initial_keys[0].fingerprint)
+        self.assertNotEqual(key_difference[0], initial_keys[0])
 
