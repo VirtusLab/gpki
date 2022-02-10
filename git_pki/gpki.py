@@ -55,7 +55,7 @@ class GPKI:
             response = input(f"Replace existing identity of {existing_key}? [yN] ")
             if response.lower() != "y":
                 return
-            self.revoke(pkey_name=existing_key)
+            self.revoke(priv_key_name=existing_key)
 
         fingerprint = self.__gpg.generate_key(name, email, description, passphrase=passphrase)
         if fingerprint is None:
@@ -67,38 +67,37 @@ class GPKI:
         self.__git.push_branch(f"{name}/{fingerprint}", f"Publish key {name}/{fingerprint}")
         print(key)
 
-    def revoke(self, pkey_name=None):
-        if pkey_name is None:
+    def revoke(self, priv_key_name=None):
+        if priv_key_name is None:
             available_signatories = map(format_key, self.__gpg.private_keys_list())
             selection = iterfzf.iterfzf(available_signatories, prompt="Select private key to revoke ")
             to_revoke = None if selection is None else selection.split()[0]
             if to_revoke is None:
                 return
-            pkey = self.__gpg.get_private_key_by_id(to_revoke)
+            priv_key = self.__gpg.get_private_key_by_id(to_revoke)
         else:
-            pkey = self.__gpg.get_private_key_by_id(pkey_name)
+            priv_key = self.__gpg.get_private_key_by_id(priv_key_name)
 
-        passphrase = getpass.getpass(f"Specify passphrase for the existing key of [{pkey.name}]: ")
-        self.__gpg.remove_private_key(pkey.fingerprint, passphrase)
+        passphrase = getpass.getpass(f"Specify passphrase for the existing key of [{priv_key.name}]: ")
+        self.__gpg.remove_private_key(priv_key.fingerprint, passphrase)
         if input("Invalidate previous public key? [yN]\n").lower() == "y":  # remove this question, it's pointless to have public key when nobody has private key
-            self.__gpg.remove_public_key(pkey.fingerprint)
+            self.__gpg.remove_public_key(priv_key.fingerprint)
             ans = input("Specify expiration time in format YYYY-MM-DDTHH:mm:ss or leave empty to take current timestamp.")
             if ans == '':
-                revocation_timestamp = datetime.now(timezone.utc).replace(tzinfo=timezone.utc).strftime(
-                    '%Y-%m-%d %H:%M:%S%z')
+                revocation_timestamp = datetime.now(timezone.utc)
             else:
                 try:
-                    revocation_timestamp = datetime.fromisoformat(ans).replace(tzinfo=timezone.utc).strftime(
-                        '%Y-%m-%d %H:%M:%S%z')
+                    revocation_timestamp = datetime.fromisoformat(ans)
                 except ValueError:
                     Git_PKI_Exception(f"Unrecognized date: {ans}")
+            revocation_timestamp = revocation_timestamp.replace(tzinfo=timezone.utc).strftime('%Y-%m-%d %H:%M:%S%z')
 
             # make RevokeIdentityRequest
-            revoke_file = Path(f"{self.__git.identity_dir}/{pkey.name}/{pkey.fingerprint}_revoked")
+            revoke_file = Path(f"{self.__git.identity_dir}/{priv_key.name}/{priv_key.fingerprint}_revoked")
             mkdir(revoke_file.parent)
             with open(revoke_file, 'w') as f:
                 f.write(revocation_timestamp)
-            self.__git.push_branch(f"{pkey.name}/{pkey.fingerprint}_revoked", f"Revoke key {pkey.name}/{pkey.fingerprint}")
+            self.__git.push_branch(f"{priv_key.name}/{priv_key.fingerprint}_revoked", f"Revoke key {priv_key.name}/{priv_key.fingerprint}")
 
     def list_signatories(self):
         print("fingerprint                              created-on expires-on\tidentity\temail\tdescription")
@@ -157,16 +156,16 @@ class GPKI:
             return
 
         # Check if we have at least one private key to decrypt message
-        rkey = None
+        priv_key = None
         for rec in recipients[::-1]:
-            rkey = self.__gpg.get_private_key_by_id(rec)
-            if rkey is not None:
+            priv_key = self.__gpg.get_private_key_by_id(rec)
+            if priv_key is not None:
                 break
 
-        if rkey is None:
+        if priv_key is None:
             raise Git_PKI_Exception("Could not find private key to decrypt message. Are you correct recipient?")
         if passphrase is None:
-            passphrase = getpass.getpass(f"Specify passphrase for {rkey.name}: ")
+            passphrase = getpass.getpass(f"Specify passphrase for {priv_key.name}: ")
 
         self.verify_message(source, passphrase, update)
         self.__gpg.decrypt(source, target, passphrase)
@@ -359,15 +358,12 @@ class GPKI:
             print("Warning, cannot perform `git merge` automatically")
 
         changes = list(git.file_diff(request.branch.full_name))
-        reviewed = git.open_worktree(self.__review_dir, request.branch.full_name)
-        try:
+        with git.open_worktree(self.__review_dir, request.branch.full_name) as reviewed:
             for change in map(map_change, changes):
                 self.__run_checks(change, request, reviewed)
             print("Requested changes:")
             for change in map(map_change, changes):
                 print(change)
-        finally:
-            git.close_worktree(request.branch.full_name)
 
         msg = 'Approve this changes? Answer "y" to merge them.'
         if input(msg).lower() != 'y':
@@ -444,9 +440,7 @@ class GPKI:
         else:
             return datetime.strptime('2000-01-01 00:00:00+00:00', '%Y-%m-%d %H:%M:%S%z')
 
-
     def update(self, keep_rejected_keys=False):
-        self.__git.checkout(self.__git.master_branch)
         self.__git.fetch(prune=True)
         self.__git.merge(f'origin/{self.__git.master_branch}')
 
@@ -474,24 +468,20 @@ class GPKI:
         if isinstance(request, RevokeIdentityRequest):
             return
         else:
-            try:
-                self.__git.checkout(request.branch.name)
+            with self.__git.open_worktree(self.__review_dir, request.branch.name) as work_tree:
                 if isinstance(request, AddIdentityRequest):
-                    keys_to_remove = self.__gpg.scan(request.file)
+                    keys_to_remove = self.__gpg.scan(work_tree.path_to(os.path.join('identities', request.name, request.fingerprint)))
                     passphrase = getpass.getpass(f"Specify passphrase to remove existing key of [{keys_to_remove[0].name}]: ")
                     self.__gpg.remove_public_key(keys_to_remove[0].fingerprint)
                     self.__gpg.remove_private_key(keys_to_remove[0].fingerprint, passphrase)
-
                 else:
                     keys_to_remove = []
-                    for root, _, files in os.walk(self.__git.path_to(os.path.join('identities'))):
+                    for root, _, files in os.walk(work_tree.path_to(os.path.join('identities'))):
                         for file in files:
                             if file in request.fingerprints:
                                 keys_to_remove.extend(self.__gpg.scan(os.path.join(root, file)))
                     for key in keys_to_remove:
                         self.__gpg.remove_public_key(key.fingerprint)
-            finally:
-                self.__git.checkout(self.__git.master_branch)
 
 
 def create_gpki_parser():
