@@ -160,16 +160,16 @@ class GPKI:
             return
 
         # Check if we have at least one private key to decrypt message
-        rkey = None
+        priv_key = None
         for rec in recipients[::-1]:
-            rkey = self.__gpg.get_private_key_by_id(rec)
-            if rkey is not None:
+            priv_key = self.__gpg.get_private_key_by_id(rec)
+            if priv_key is not None:
                 break
 
-        if rkey is None:
+        if priv_key is None:
             raise Git_PKI_Exception("Could not find private key to decrypt message. Are you correct recipient?")
         if passphrase is None:
-            passphrase = getpass.getpass(f"Specify passphrase for {rkey.name}: ")
+            passphrase = getpass.getpass(f"Specify passphrase for {priv_key.name}: ")
 
         self.verify_message(source, passphrase, update)
         self.__gpg.decrypt(source, target, passphrase)
@@ -362,15 +362,12 @@ class GPKI:
             print("Warning, cannot perform `git merge` automatically")
 
         changes = list(git.file_diff(request.branch.full_name))
-        reviewed = git.open_worktree(self.__review_dir, request.branch.full_name)
-        try:
+        with git.open_worktree(self.__review_dir, request.branch.full_name) as reviewed:
             for change in map(map_change, changes):
                 self.__run_checks(change, request, reviewed)
             print("Requested changes:")
             for change in map(map_change, changes):
                 print(change)
-        finally:
-            git.close_worktree(request.branch.full_name)
 
         msg = 'Approve this changes? Answer "y" to merge them.'
         if input(msg).lower() != 'y':
@@ -447,9 +444,7 @@ class GPKI:
         else:
             return datetime.strptime('2000-01-01 00:00:00+00:00', '%Y-%m-%d %H:%M:%S%z')
 
-
     def update(self):
-        self.__git.checkout('master')
         self.__git.pull('master')
 
         for root, dirs, files in os.walk(os.path.join(self.__git.root_dir, 'identities')):
