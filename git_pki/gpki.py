@@ -48,7 +48,6 @@ class GPKI:
         self.__git.update(listener)
 
     def generate_identity(self, name, email, description, passphrase=None):
-        self.__git.checkout(self.__git.master_branch)
         existing_key = self.__gpg.private_key_fingerprint(name)
         if existing_key is not None:
             # If key exists, confirm removal of the private version and move public one to the archive
