@@ -1,4 +1,5 @@
 import os
+from contextlib import contextmanager
 from pathlib import Path
 from typing import List
 
@@ -44,11 +45,18 @@ class Git:
 
     def push_branch(self, branch, message):
         # TODO (#13): recover on failure
-        shell(self.root_dir, f"git checkout -b {branch}")
-        shell(self.root_dir, "git add -A")
-        self.commit(message)
-        self.push(branch)
-        self.checkout(PREVIOUS_BRANCH)
+        try:
+            shell(self.root_dir, f"git checkout -b {branch}")
+            shell(self.root_dir, "git add -A")
+            self.commit(message)
+            self.push(branch)
+        except EnvironmentError:
+            self.stash()
+        finally:
+            self.checkout(PREVIOUS_BRANCH)
+
+    def stash(self):
+        shell(self.root_dir, f"git stash")
 
     def push(self, branch):
         shell(self.root_dir, f"git push origin {branch}")
@@ -95,10 +103,14 @@ class Git:
         to_tuple = lambda segments: FileChange(segments[0], segments[1])
         return map(to_tuple, map(strip, raw))
 
+    @contextmanager
     def open_worktree(self, directory, branch):
         path = Path(f"{directory}/{branch}")
         shell(self.root_dir, f"git worktree add {path} {branch}")
-        return Git(path)
+        try:
+            yield Git(path)
+        finally:
+            self.close_worktree(branch)
 
     def close_worktree(self, branch):
         shell(self.root_dir, f"git worktree remove {branch}")
