@@ -347,15 +347,12 @@ class GPKI:
             print("Warning, cannot perform `git merge` automatically")
 
         changes = list(git.file_diff(request.branch.full_name))
-        reviewed = git.open_worktree(self.__review_dir, request.branch.full_name)
-        try:
+        with git.open_worktree(self.__review_dir, request.branch.full_name) as reviewed:
             for change in map(map_change, changes):
                 self.__run_checks(change, request, reviewed)
             print("Requested changes:")
             for change in map(map_change, changes):
                 print(change)
-        finally:
-            git.close_worktree(request.branch.full_name)
 
         msg = 'Approve this changes? Answer "y" to merge them.'
         if input(msg).lower() != 'y':
@@ -432,9 +429,7 @@ class GPKI:
         else:
             return datetime.strptime('2000-01-01 00:00:00+00:00', '%Y-%m-%d %H:%M:%S%z')
 
-
     def update(self):
-        self.__git.checkout('master')
         self.__git.pull('master')
 
         for root, dirs, files in os.walk(os.path.join(self.__git.root_dir, 'identities')):
