@@ -9,13 +9,13 @@ with open(path.join(this_directory, 'README.md')) as f:
     long_description = f.read()
 
 setup(
-    name='git_pki',
+    name='gpki',
     version=__version__,
     description='Git Public Key Infrastructure',
     long_description=long_description,
     long_description_content_type='text/markdown',
     packages=['git_pki'],
-    scripts=['git-pki'],
+    scripts=['gpki'],
     python_requires='>=3.6',
     options={'bdist_wheel': {'universal': '1'}},
 )
