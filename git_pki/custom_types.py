@@ -11,7 +11,9 @@ Request = namedtuple('Request', ["branch", "title"])
 FileChange = namedtuple('FileChange', ["op", "path"])
 Key = namedtuple('Key', ["name", "email", "description", "fingerprint", "created_on", "expires_on"])
 AddIdentityRequest = namedtuple('AddIdentityRequest', ['branch', 'name', 'fingerprint', 'file'])
+RevokeIdentityRequest = namedtuple('RevokeIdentityRequest', ['branch', 'name', 'fingerprint', 'file'])
 ImportRequest = namedtuple('ImportRequest', ['branch', 'hash'])
+SignatureVerification = namedtuple('SignatureVerification', ['timestamp', 'signatory_fingerprint', 'signatory_name', 'expiry_time', 'status'])
 
 
 class KeyChange:

@@ -6,7 +6,7 @@ import sys
 from getpass import getpass
 from datetime import datetime
 
-from git_pki.custom_types import Key
+from git_pki.custom_types import Key, SignatureVerification
 
 
 verbose = False
@@ -102,6 +102,17 @@ class GnuPGHandler:
         else:
             print(f"Decrypted data saved in {target}")
 
+    def verify_signature(self, source, passphrase):
+        if os.path.isfile(source):
+            with open(source, "rb") as source_file:
+                result = self.gpg.decrypt_file(source_file, output=None, passphrase=passphrase)
+        else:
+            result = self.gpg.decrypt("".join(source), output=None, passphrase=passphrase)
+        if not result.ok:
+            print(f"Could not verify: {result.status}.")
+            return
+        return self.parse_verification(result.sig_info)
+
     def get_recipients_from_file(self, source_file):
         return self.gpg.get_recipients_file(source_file)
 
@@ -123,8 +134,28 @@ class GnuPGHandler:
         return Key(name, email, description, fingerprint, created_on, expires_on)
 
     @staticmethod
+    def parse_verification(sig_info):
+        signatories = []
+        for sig_hash in sig_info.keys():
+            timestamp = sig_info[sig_hash]['timestamp']
+            signatory_fingerprint = sig_info[sig_hash]['fingerprint']
+            signatory_name = sig_info[sig_hash]['username']
+            expiry = sig_info[sig_hash]['expiry']
+            status = sig_info[sig_hash]['status']
+            signatories.append(SignatureVerification(timestamp, signatory_fingerprint, signatory_name, expiry, status))
+        return signatories
+
+    @staticmethod
     def __key_parse_date(key, field):
         try:
             return datetime.fromtimestamp(int(key[field])).strftime("%Y-%m-%d")
         except ValueError:
             return None  # in case there is no expiration date
+
+    def get_private_key_by_id(self, keyid):
+        keys = self.gpg.list_keys(True, keys=keyid)
+        return self.parse_key(keys[0]) if keys else None
+
+    def get_public_key_by_id(self, keyid):
+        keys = list(self.public_keys_list(keyid))
+        return keys[0] if keys else None
