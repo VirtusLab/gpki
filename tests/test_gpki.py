@@ -17,8 +17,8 @@ from git_pki.git_wrapper import Git
 from git_pki.utils import shell
 
 
-def mock_iterfzf(base_container, prompt=""):
-    return list(base_container)[0]
+def mock_iterfzf(base_container, prompt="", multi=False):
+    return list(base_container) if multi else list(base_container)[0]
 
 
 def mock_getpass(prompt):
@@ -454,3 +454,65 @@ class GitPKI_Tester(TestCase):
         self.assertNotEqual(key_difference[0].fingerprint, initial_keys[0].fingerprint)
         self.assertNotEqual(key_difference[0], initial_keys[0])
 
+    @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
+    @patch('iterfzf.iterfzf', mock_iterfzf)  # take first and only signatory
+    def test_encrypt_for_multiple_recipients(self):
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            test_dir = GitPKI_Tester.get_temp_directory()
+            gpki = GPKI(test_dir)
+            gpg_wrapped = git_pki.gpg_wrapper.GnuPGHandler(test_dir + "/vault/private")
+            git = Git(test_dir + '/vault/public')
+            gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
+            gpki.generate_identity('tester2', 'tester2@test.com', 'empty description', passphrase='strong_password')
+            gpki.generate_identity('tester3', 'tester3@test.com', 'empty description', passphrase='strong_password')
+            gpki.generate_identity('tester4', 'tester4@test.com', 'empty description', passphrase='strong_password')
+
+        # also create a backup export of desired key, as it will be deleted from keyring
+        backup_path = git.path_to('backup_key')
+        gpki.export_keys(['tester'], backup_path)
+
+        for pkey in list(gpg_wrapped.private_keys_list())[:-1]:
+            gpg_wrapped.remove_private_key(pkey, 'strong_password')
+
+        # encrypt message with --all flag
+        initial_message = 'Confidencial data propagated to all team members'
+        stdin_backup = sys.stdin
+        sys.stdin = StringIO(initial_message)
+        with StringIO() as out:
+            with redirect_stdout(out):
+                gpki.encrypt(None, None, select_all_recipients=True)
+            raw_output = out.getvalue()
+
+        encrypted_message = self.exctract_gnupg_message(raw_output)
+
+        for pkey in list(gpg_wrapped.public_keys_list())[:-1]:  # leave only one public key
+            gpg_wrapped.remove_public_key(pkey)
+
+        sys.stdin = StringIO(encrypted_message)
+        with StringIO() as out:
+            with redirect_stdout(out):
+                gpki.decrypt(None, None)
+            raw_output = out.getvalue()
+
+        sys.stdin = stdin_backup
+        relevant_message = raw_output.split('\n')[-2]
+        self.assertIn(initial_message, raw_output)
+        self.assertEqual(initial_message, relevant_message)
+
+        # try to decrypt with different key
+        for pkey in gpg_wrapped.private_keys_list():
+            gpg_wrapped.remove_private_key(pkey, 'strong_password')
+
+        with patch('builtins.input', return_value='y') as _:
+            gpki.import_keys([backup_path])
+
+        sys.stdin = StringIO(encrypted_message)
+        with StringIO() as out:
+            with redirect_stdout(out):
+                gpki.decrypt(None, None)
+            raw_output = out.getvalue()
+
+        sys.stdin = stdin_backup
+        relevant_message = raw_output.split('\n')[-2]
+        self.assertIn(initial_message, raw_output)
+        self.assertEqual(initial_message, relevant_message)

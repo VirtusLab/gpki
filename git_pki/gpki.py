@@ -100,15 +100,19 @@ class GPKI:
             # TODO (#25): align the text correctly
             print(f"{key}")
 
-    def encrypt(self, source, target, passphrase=None):
+    def encrypt(self, source, target, passphrase=None, select_all_recipients=False):
         if target is not None and os.path.isfile(target):
             if input(f"Target file already exist, do you want to overwrite? [yN] ").lower() != 'y':
                 return
-        available_recipients = map(format_key, self.__gpg.public_keys_list())
-        selection = iterfzf.iterfzf(available_recipients, prompt="Select recipient: ")
-        if selection is None:
-            return
-        recipient = selection.split()[0]
+        available_recipients = list(map(format_key, self.__gpg.public_keys_list()))
+        if select_all_recipients:
+            selection = available_recipients
+        else:
+            selection = iterfzf.iterfzf(available_recipients, prompt="Select recipients (use tab to selected entry): ", multi=True)
+            if selection is None:
+                return
+
+        recipients = [item.split()[0] for item in selection]
 
         available_signatories = map(format_key, self.__gpg.private_keys_list())
         selection = iterfzf.iterfzf(available_signatories, prompt="Select signatory or press ctrl+d to not sign ")
@@ -117,7 +121,7 @@ class GPKI:
         if not passphrase:
             passphrase = getpass.getpass(f"Specify passphrase for [{selection[0]}]: ")
 
-        self.__gpg.encrypt(recipient, signatory, source, target, passphrase)
+        self.__gpg.encrypt(recipients, signatory, source, target, passphrase)
 
     def decrypt(self, source, target, passphrase=None, update=False):
         if update:
@@ -132,18 +136,25 @@ class GPKI:
             for line in sys.stdin:
                 data.append(line)
             source = "".join(data)
-            recipient = self.__gpg.get_recipients_from_message(source)
+            recipients = self.__gpg.get_recipients_from_message(source)
         elif os.path.isfile(source):
             with open(source, 'rb') as src_file:
-                recipient = self.__gpg.get_recipients_from_file(src_file)
+                recipients = self.__gpg.get_recipients_from_file(src_file)
         else:
             print(f"Specified source file: {source} was not found, aborting.")
             return
-        key = self.__gpg.get_private_key_by_id(recipient[0])
-        if key is None:
+
+        # Check if we have at least one private key to decrypt message
+        priv_key = None
+        for rec in recipients[::-1]:
+            priv_key = self.__gpg.get_private_key_by_id(rec)
+            if priv_key is not None:
+                break
+
+        if priv_key is None:
             raise Git_PKI_Exception("Could not find private key to decrypt message. Are you correct recipient?")
         if passphrase is None:
-            passphrase = getpass.getpass(f"Specify passphrase for {key.name}: ")
+            passphrase = getpass.getpass(f"Specify passphrase for {priv_key.name}: ")
 
         self.verify_message(source, passphrase, update)
         self.__gpg.decrypt(source, target, passphrase)
@@ -459,6 +470,7 @@ def create_gpki_parser():
     encrypt_parser.add_argument('--input', '-i', default=None)
     encrypt_parser.add_argument('--output', '-o', default=None)
     encrypt_parser.add_argument('--password', '-p', default=None)
+    encrypt_parser.add_argument('--all', '-a', action='store_true', default=False)
 
     decrypt_parser = subparsers.add_parser(
         'decrypt',
@@ -538,7 +550,7 @@ def launch(parsed_cli):
     if cmd == 'decrypt':
         gpki.decrypt(parsed_cli.input, parsed_cli.output, parsed_cli.password, parsed_cli.update)
     elif cmd == 'encrypt':
-        gpki.encrypt(parsed_cli.input, parsed_cli.output, parsed_cli.password)
+        gpki.encrypt(parsed_cli.input, parsed_cli.output, parsed_cli.password, parsed_cli.all)
     elif cmd == 'identity':
         if 'name' not in parsed_cli:
             raise Git_PKI_Exception("Name is mandatory while creating new identity.")
