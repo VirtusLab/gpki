@@ -363,7 +363,7 @@ class GitPKI_Tester(TestCase):
     @patch('git_pki.gpg_wrapper.GnuPGHandler.export_public_key', mock_export_public_key)  # need to export private key
     @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
     @patch('iterfzf.iterfzf', mock_iterfzf)  # in tests we got only one identity per test, so we can easily get the first one and move on
-    def test_revoke_key(self):
+    def test_revoke_key_by_overriding_identity(self):
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
             test_dir = GitPKI_Tester.get_temp_directory()
             gpki = GPKI(test_dir)
@@ -415,6 +415,40 @@ class GitPKI_Tester(TestCase):
                 with self.assertRaises(Git_PKI_Exception,
                                        msg='Could not decrypt message signed with revoked key and message was signed after revocation time.'):
                     gpki.decrypt(None, None)
+
+    @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
+    @patch('iterfzf.iterfzf', mock_iterfzf)  # in tests we got only one identity per test, so we can easily get the first one and move on
+    def test_revoke_key(self):
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            test_dir = GitPKI_Tester.get_temp_directory()
+            gpki = GPKI(test_dir)
+            git = Git(test_dir + '/vault/public')
+            gpg_wrapped = git_pki.gpg_wrapper.GnuPGHandler(test_dir + "/vault/private")
+            gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
+
+        # approve freshly added identity
+        with patch('builtins.input', side_effect=[0, 'y', ]) as _:
+             gpki.review_requests()
+
+        all_private_keys = list(gpg_wrapped.private_keys_list())
+        pkey = all_private_keys[0]
+        self.assertTrue(len(all_private_keys) == 1)
+
+        with patch('builtins.input', side_effect=['y', '2022-01-01']) as _:
+            gpki.revoke('tester')
+        gpki.merge_revoked()
+
+        all_private_keys_after_revoke = list(gpg_wrapped.private_keys_list())
+
+        self.assertTrue(len(all_private_keys_after_revoke) == 0)
+
+        # check if revoke branch is merged to master
+        git.pull('master')
+        add_identity_path = git.path_to(f'identities/{pkey.name}/{pkey.fingerprint}')
+        revoke_path = git.path_to(f'identities/{pkey.name}/{pkey.fingerprint}_revoked')
+        self.assertTrue(os.path.exists(add_identity_path))
+        self.assertTrue(os.path.exists(revoke_path))
+
 
     @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
     @patch('iterfzf.iterfzf', mock_iterfzf)  # in tests we got only one identity per test, so we can easily get the first one and move on
