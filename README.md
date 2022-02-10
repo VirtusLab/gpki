@@ -53,17 +53,17 @@ You are all set and ready to use _GPKI_
 
 ### Getting started
 It's worth to mention, at this point Certificate Authority should already create git repository to keep users public keys.
-At first use, regardless of command used, user is asked to provide link to the git repository.
-Before encrypting messages, files and any other confidential stuff, there has to be created at least one `identity` 
-which is used to sign gpg messages.
+When run for the first time, the user will be asked for a link to the git repository.
+Encryption requires at least one unexpired `identity` created on the machine in use. It will become the message signatory.
+
 Create identity with:
 
 `gpki identity <name> [--email <email>] [--description <description>]`
 
-Apart from created gpg public/private key pair, new pull request to master branch has been opened. In order to receive 
-messages from other users, your `identity` has to be approved by CA and merged to master branch.
+This creates a public/private key pair in the local gpg vault and pushes a new branch with the public key to the repository for review.
+It has to be approved (and merged) by one of the CAs to become visible to others.
 
-To source all available recipients from repository, use:
+To synchronize keyring with all available recipients from repository, use:
 
 `gpki update`
 
@@ -71,7 +71,12 @@ Encrypt message or file with:
 
 `gpki encrypt [--all/-a] [--input/-i <input_path>] [--output/-o <output_path>]`
 
+When `input` is omitted, it will be read from standard input.
+When `output` is omitted, it will be printed to the standard output.
+
 Decrypt message with:
 
 `gpki decrypt [--input/-i <input_path>] [--output/-o <output_path>] [--update/-u]`
 
+When `input` is omitted, it will be read from standard input.
+When `output` is omitted, it will be printed to the standard output.
