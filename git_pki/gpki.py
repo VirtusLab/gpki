@@ -11,7 +11,7 @@ from pathlib import Path
 
 import git_pki.gpg_wrapper
 from git_pki import __version__
-from git_pki.custom_types import KeyChange, ImportRequest, RevokeIdentityRequest
+from git_pki.custom_types import AddIdentityRequest, KeyChange, ImportRequest, RevokeIdentityRequest, Request
 from git_pki.exceptions import Git_PKI_Exception
 from git_pki.git_wrapper import Git
 from git_pki.utils import file_exists, format_key, mkdir, read_multiline_string, sha1_encode
@@ -61,14 +61,11 @@ class GPKI:
         if fingerprint is None:
             return
 
-        key = self.__gpg.export_public_key(name)
+        key = self.__gpg.export_public_key(fingerprint)
         file = Path(f"{self.__git.identity_dir}/{name}/{fingerprint}")
         self.__export_key(key, Path(file))
         self.__git.push_branch(f"{name}/{fingerprint}", f"Publish key {name}/{fingerprint}")
         print(key)
-        # TODO (#24): maybe find a way to revert changes if PR gets rejected ?
-        #  fetch --prune, then check which branch is present locally and not on remote, then remove keys from selected branches
-        #  move to update method and add flag to `update` <keep-rejected-keys>
 
     def revoke(self, priv_key_name=None):
         if priv_key_name is None:
@@ -356,7 +353,7 @@ class GPKI:
         except ValueError:
             raise Git_PKI_Exception("Please pass the integer value to select request.")
 
-        request = git.get_request(unmerged[selected])
+        request = git.get_specified_request(unmerged[selected])
         if not git.is_mergeable_to('master', request.branch.full_name):
             print("Warning, cannot perform `git merge` automatically")
 
@@ -384,10 +381,10 @@ class GPKI:
 
     def merge_revoked(self):
         self.__git.fetch()
-        self.__git.pull('master')
+        self.__git.merge('origin/master')
         unmerged_branches = list(self.__git.list_branches_unmerged_to_remote_counterpart_of(self.__git.current_branch()))
         for branch in unmerged_branches:
-            request = self.__git.get_request(branch)
+            request = self.__git.get_specified_request(branch)
             if isinstance(request, RevokeIdentityRequest):
                 if self.__git.is_mergeable_to('master', request.branch.full_name):
                     self.merge_changes(request)
@@ -443,8 +440,9 @@ class GPKI:
         else:
             return datetime.strptime('2000-01-01 00:00:00+00:00', '%Y-%m-%d %H:%M:%S%z')
 
-    def update(self):
-        self.__git.pull('master')
+    def update(self, keep_rejected_keys=False):
+        self.__git.fetch(prune=True)
+        self.__git.merge('origin/master')
 
         for root, dirs, files in os.walk(os.path.join(self.__git.root_dir, 'identities')):
             for file in files:
@@ -456,6 +454,34 @@ class GPKI:
                 if gpg_wrapper.verbose:
                     print(f"Loaded key: name: {os.path.dirname(identity_path).split('/')[-1]}, fingerprint: {file}")
         print("Successfully loaded all valid keys.")
+
+        remote_branches = [rbranch.replace('origin/', '') for rbranch in self.__git.get_remote_branches()]
+        branches_to_check = [lbranch for lbranch in self.__git.get_local_branches() if lbranch not in remote_branches]
+        for branch in branches_to_check:
+            if not self.__git.is_merged_to('master', branch):
+                if not keep_rejected_keys:
+                    self.__revert_pr(branch)
+                    self.__git.remove_local_branch(branch)
+
+    def __revert_pr(self, branch):
+        request = self.__git.get_specified_request(Request(branch, self.__git.commit_title(branch)))
+        if isinstance(request, RevokeIdentityRequest):
+            return
+        else:
+            with self.__git.open_worktree(self.__review_dir, request.branch.name) as work_tree:
+                if isinstance(request, AddIdentityRequest):
+                    keys_to_remove = self.__gpg.scan(work_tree.path_to(os.path.join('identities', request.name, request.fingerprint)))
+                    passphrase = getpass.getpass(f"Specify passphrase to remove existing key of [{keys_to_remove[0].name}]: ")
+                    self.__gpg.remove_public_key(keys_to_remove[0].fingerprint)
+                    self.__gpg.remove_private_key(keys_to_remove[0].fingerprint, passphrase)
+                else:
+                    keys_to_remove = []
+                    for root, _, files in os.walk(work_tree.path_to(os.path.join('identities'))):
+                        for file in files:
+                            if file in request.fingerprints:
+                                keys_to_remove.extend(self.__gpg.scan(os.path.join(root, file)))
+                    for key in keys_to_remove:
+                        self.__gpg.remove_public_key(key.fingerprint)
 
 
 def create_gpki_parser():
@@ -545,12 +571,13 @@ def create_gpki_parser():
         add_help=False,
         parents=[common_args_parser])
 
-    subparsers.add_parser(
+    update_parser = subparsers.add_parser(
         'update',
         argument_default=argparse.SUPPRESS,
         usage=argparse.SUPPRESS,
         add_help=False,
         parents=[common_args_parser])
+    update_parser.add_argument('--keep-rejected-keys', action='store_true', default=False)
 
     subparsers.add_parser(
         'revoke',
@@ -587,7 +614,7 @@ def launch(parsed_cli):
     elif cmd == 'review':
         gpki.review_requests()
     elif cmd == 'update':
-        gpki.update()
+        gpki.update(parsed_cli.keep_rejected_keys)
     elif cmd == 'revoke':
         gpki.revoke()
     else:

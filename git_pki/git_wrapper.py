@@ -79,11 +79,14 @@ class Git:
     def list_branches_unmerged_to_remote_counterpart_of(self, branch):
         raw = shell(self.root_dir, f"git branch --remotes --no-merged origin/{branch}").splitlines()
         strip = lambda line: line.strip()
-        to_tuple = lambda branch: Request(branch, self.__commit_title(branch))
+        to_tuple = lambda branch: Request(branch, self.commit_title(branch))
         return map(to_tuple, map(strip, raw))
 
     def get_local_branches(self):
-        return shell(self.root_dir, 'git branch').replace('\n', '').split()
+        return shell(self.root_dir, 'git branch').replace('*', '').replace('\n', '').split()
+
+    def get_remote_branches(self):
+        return shell(self.root_dir, 'git branch --remotes').replace('\n', '').split()
 
     def checkout(self, branch_name):
         shell(self.root_dir, f"git checkout {branch_name} --")
@@ -115,7 +118,7 @@ class Git:
     def current_branch(self):
         return shell(self.root_dir, "git rev-parse --abbrev-ref HEAD")
 
-    def __commit_title(self, ref):
+    def commit_title(self, ref):
         return shell(self.root_dir, f"git log -1 --format=%s {ref}").strip()
 
     def __update_repository(self):
@@ -129,7 +132,11 @@ class Git:
         output = shell(self.root_dir, f"git merge-tree {merge_base} {base_branch} {head_branch}").strip()
         return 'changed in both' not in output  # most probably there will be conflict when 'change in both' is present
 
-    def get_request(self, request):
+    def is_merged_to(self, base_branch, head_branch):
+        local_merged_branches = shell(self.root_dir, f'git branch --merged {base_branch}').replace('\n', '').split()
+        return head_branch in local_merged_branches
+
+    def get_specified_request(self, request):
         if "import" in request.branch:
             return self.parse_import_request(request)
         else:
@@ -160,5 +167,6 @@ class Git:
 
     def parse_import_request(self, request):
         import_hash = request.branch.split('/')[-1]
+        fingerprints = [fp.strip() for fp in request.title.replace('Import keys ', '').split(', ')]
         branch = Branch('origin', '/'.join(['import', import_hash]), request.branch)
-        return ImportRequest(branch, import_hash)
+        return ImportRequest(branch, import_hash, fingerprints)

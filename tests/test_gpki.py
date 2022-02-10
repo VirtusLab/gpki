@@ -29,6 +29,11 @@ def mock_export_public_key(cls, name):
     return cls.gpg.export_keys(name, True, passphrase="strong_password")
 
 
+def set_git_username_email(path_to_repo):
+    shell(os.path.join(path_to_repo, 'vault', 'public'), 'git config user.email "tester@test.com"')
+    shell(os.path.join(path_to_repo, 'vault', 'public'), 'git config user.name "Tester Test"')
+
+
 class GitRepositorySandbox:
     def __init__(self):
         with os.popen("mktemp -d") as temp_remote_folder:
@@ -104,6 +109,7 @@ class GitPKI_Tester(TestCase):
         temp_dir_name = GitPKI_Tester.get_temp_directory()
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
             gpki = GPKI(temp_dir_name)
+            set_git_username_email(temp_dir_name)
         gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
         branches = shell(os.path.join(temp_dir_name, 'vault', 'public'), 'git branch -a')
         self.assertIn('remotes/origin/tester', branches)  # TODO (#36): rely on changes in Keys
@@ -111,8 +117,10 @@ class GitPKI_Tester(TestCase):
     @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
     @patch('iterfzf.iterfzf', mock_iterfzf)  # in tests we got only one identity per test, so we can easily get the first one and move on
     def test_encrypt_decrypt_message(self):
+        temp_dir_name = GitPKI_Tester.get_temp_directory()
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
-            gpki = GPKI(GitPKI_Tester.get_temp_directory())
+            gpki = GPKI(temp_dir_name)
+            set_git_username_email(temp_dir_name)
         gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
 
         stdin_backup = sys.stdin
@@ -138,8 +146,10 @@ class GitPKI_Tester(TestCase):
     @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
     @patch('iterfzf.iterfzf', mock_iterfzf)  # in tests we got only one identity per test, so we can easily get the first one and move on
     def test_encrypt_to_file_decrypt_from_file(self):
+        temp_dir_name = GitPKI_Tester.get_temp_directory()
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
-            gpki = GPKI(GitPKI_Tester.get_temp_directory())
+            gpki = GPKI(temp_dir_name)
+            set_git_username_email(temp_dir_name)
         gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
 
         message = "confidencial test message"
@@ -163,8 +173,10 @@ class GitPKI_Tester(TestCase):
     @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
     @patch('iterfzf.iterfzf', mock_iterfzf)  # in tests we got only one identity per test, so we can easily get the first one and move on
     def test_encrypt_from_file_to_file_decrypt_from_file_to_file(self):
+        temp_dir_name = GitPKI_Tester.get_temp_directory()
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
-            gpki = GPKI(GitPKI_Tester.get_temp_directory())
+            gpki = GPKI(temp_dir_name)
+            set_git_username_email(temp_dir_name)
         gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
 
         message = "Strong encryption"
@@ -183,14 +195,16 @@ class GitPKI_Tester(TestCase):
         self.assertEqual(initial_msg, decrypted_file_body)
 
     def test_import_keys_from_file(self):
-        test_dir = os.path.abspath(__file__)
+        root_dir = os.path.abspath(__file__)
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
-            gpki = GPKI(GitPKI_Tester.get_temp_directory())
+            test_dir = GitPKI_Tester.get_temp_directory()
+            gpki = GPKI(test_dir)
+            set_git_username_email(test_dir)
 
         with patch('builtins.input', return_value='y') as _:  # To confirm that file contains proper keys
             with StringIO() as out:
                 with redirect_stdout(out):
-                    gpki.import_keys([test_dir.replace('test_gpki.py', 'test_keys_input.txt')])
+                    gpki.import_keys([root_dir.replace('test_gpki.py', 'test_keys_input.txt')])
                 raw_output = out.getvalue()
 
         desired_output = ('Import Summary:\n\n'
@@ -206,7 +220,7 @@ class GitPKI_Tester(TestCase):
         with patch('builtins.input', return_value='y') as _:  # To confirm that file contains proper keys
             with StringIO() as out:
                 with redirect_stdout(out):
-                    gpki.import_keys([test_dir.replace('test_gpki.py', 'test_keys_input.txt')])
+                    gpki.import_keys([root_dir.replace('test_gpki.py', 'test_keys_input.txt')])
                 raw_output = out.getvalue()
 
         desired_output = ('\nImport Summary:\n\n'
@@ -222,6 +236,7 @@ class GitPKI_Tester(TestCase):
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
             test_dir = GitPKI_Tester.get_temp_directory()
             gpki = GPKI(test_dir)
+            set_git_username_email(test_dir)
             git = Git(test_dir + '/vault/public')
             gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
 
@@ -249,6 +264,7 @@ class GitPKI_Tester(TestCase):
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
             test_dir = GitPKI_Tester.get_temp_directory()
             gpki = GPKI(test_dir)
+            set_git_username_email(test_dir)
             git = Git(test_dir + '/vault/public')
             gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
 
@@ -274,6 +290,7 @@ class GitPKI_Tester(TestCase):
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
             test_dir = GitPKI_Tester.get_temp_directory()
             gpki = GPKI(test_dir)
+            set_git_username_email(test_dir)
             git = Git(test_dir + '/vault/public')
             gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
 
@@ -300,6 +317,7 @@ class GitPKI_Tester(TestCase):
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
             test_dir = GitPKI_Tester.get_temp_directory()
             gpki = GPKI(test_dir)
+            set_git_username_email(test_dir)
             git = Git(test_dir + '/vault/public')
 
         with patch('builtins.input', return_value='y') as _:  # To confirm that file contains proper keys
@@ -333,6 +351,7 @@ class GitPKI_Tester(TestCase):
                    return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
             test_dir = GitPKI_Tester.get_temp_directory()
             gpki = GPKI(test_dir)
+            set_git_username_email(test_dir)
             git = Git(test_dir + '/vault/public')
 
         with patch('builtins.input', return_value='y') as _:  # To confirm that file contains proper keys
@@ -367,6 +386,7 @@ class GitPKI_Tester(TestCase):
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
             test_dir = GitPKI_Tester.get_temp_directory()
             gpki = GPKI(test_dir)
+            set_git_username_email(test_dir)
             git = Git(test_dir + '/vault/public')
             gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
             gpki.generate_identity('tester2', 'tester2@test.com', 'empty description', passphrase='strong_password')
@@ -422,6 +442,7 @@ class GitPKI_Tester(TestCase):
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
             test_dir = GitPKI_Tester.get_temp_directory()
             gpki = GPKI(test_dir)
+            set_git_username_email(test_dir)
             git = Git(test_dir + '/vault/public')
             gpg_wrapped = git_pki.gpg_wrapper.GnuPGHandler(test_dir + "/vault/private")
             gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
@@ -456,6 +477,7 @@ class GitPKI_Tester(TestCase):
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
             test_dir = GitPKI_Tester.get_temp_directory()
             gpki = GPKI(test_dir)
+            set_git_username_email(test_dir)
             gpg_wrapped = git_pki.gpg_wrapper.GnuPGHandler(test_dir + "/vault/private")
             gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
             gpki.generate_identity('tester2', 'tester2@test.com', 'empty description', passphrase='strong_password')
@@ -494,6 +516,7 @@ class GitPKI_Tester(TestCase):
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
             test_dir = GitPKI_Tester.get_temp_directory()
             gpki = GPKI(test_dir)
+            set_git_username_email(test_dir)
             gpg_wrapped = git_pki.gpg_wrapper.GnuPGHandler(test_dir + "/vault/private")
             git = Git(test_dir + '/vault/public')
             gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
@@ -550,3 +573,61 @@ class GitPKI_Tester(TestCase):
         relevant_message = raw_output.split('\n')[-2]
         self.assertIn(initial_message, raw_output)
         self.assertEqual(initial_message, relevant_message)
+
+    @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
+    @patch('iterfzf.iterfzf', mock_iterfzf)  # take first and only signatory
+    def test_revert_pr_add_identity(self):
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            test_dir = GitPKI_Tester.get_temp_directory()
+            gpki = GPKI(test_dir)
+            set_git_username_email(test_dir)
+            gpg_wrapped = git_pki.gpg_wrapper.GnuPGHandler(test_dir + "/vault/private")
+            gpki.generate_identity('tester', 'tester@test.com', 'empty description', passphrase='strong_password')
+
+        private_keys = list(gpg_wrapped.private_keys_list())
+        self.assertTrue(len(private_keys) == 1)
+
+        # now let's reject our identity
+        with patch('builtins.input', side_effect=[0, 'n', 'y']) as _:
+            gpki.review_requests()
+
+        private_keys_after_review = list(gpg_wrapped.private_keys_list())
+        self.assertEqual(private_keys, private_keys_after_review)
+
+        gpki.update()
+
+        # expect empty list
+        final_private_keys = list(gpg_wrapped.private_keys_list())
+
+        self.assertTrue(len(final_private_keys) == 0)
+
+    @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
+    @patch('iterfzf.iterfzf', mock_iterfzf)  # take first and only signatory
+    def test_revert_pr_import(self):
+        root_dir = os.path.abspath(__file__)
+        with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
+            test_dir = GitPKI_Tester.get_temp_directory()
+            gpki = GPKI(test_dir)
+            set_git_username_email(test_dir)
+            gpg_wrapped = git_pki.gpg_wrapper.GnuPGHandler(test_dir + "/vault/private")
+
+        with patch('builtins.input', return_value='y') as _:
+            gpki.import_keys([root_dir.replace('test_gpki.py', 'tester_exported_multiple.txt')])
+
+        public_keys = list(gpg_wrapped.public_keys_list())
+        self.assertTrue(len(public_keys) == 2)
+        self.assertEqual([key.fingerprint for key in public_keys], ['bff0a80ce6b1aca266e017b134ed88b13c45a6ef', '5e42d830dcf16917dc7179bd196d044b1fdcc3e6'])
+
+        # now let's reject our import request
+        with patch('builtins.input', side_effect=[0, 'n', 'y']) as _:
+            gpki.review_requests()
+
+        public_keys_after_review = list(gpg_wrapped.public_keys_list())
+        self.assertEqual(public_keys, public_keys_after_review)
+
+        gpki.update()
+
+        # expect empty list
+        final_private_keys = list(gpg_wrapped.private_keys_list())
+
+        self.assertTrue(len(final_private_keys) == 0)
