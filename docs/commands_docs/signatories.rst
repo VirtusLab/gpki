@@ -8,4 +8,4 @@ signatories
 
     gpki signatories
 
-Lists all available signatories, all identities which private keys associated with are found in keyring.
+Lists all available signatories - identities whose private keys are in the local keyring.

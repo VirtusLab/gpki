@@ -70,21 +70,21 @@
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki decrypt <span class="o">[</span>-o<span class="p">|</span>--output &lt;target_file&gt;<span class="o">]</span> <span class="o">[</span>-i<span class="p">|</span>--input &lt;input_file&gt;<span class="o">]</span> <span class="o">[</span>-u<span class="p">|</span>--update<span class="o">]</span>
 </pre></div>
 </div>
-<p>Decrypts message or file content into console or specified output file.
+<p>Decrypts the file or console-pasted message. Output is written either to the console or the specified file.
 If input file is not specified, user is asked to paste GPG message block into console.
 If output file is not provided, decrypted message is printed out to the console.
 It may happen that the message is signed with revoked key. In such a case, to make sure <code class="docutils literal notranslate"><span class="pre">gpki</span></code> operates on latest data from repository, it’s adviced to pass <code class="docutils literal notranslate"><span class="pre">-u/--update</span></code> flag.</p>
-<p>Note: both input and output path are relative by default, but there is possibility to pass absolute path.</p>
+<p>Note: Unless absolute, input and output paths are relative to the current working directory.</p>
 <p><strong>Options:</strong></p>
 <dl class="option-list">
 <dt><kbd><span class="option">-o</span>, <span class="option">--output</span></kbd></dt>
-<dd><p>Specify target output file where decrypted message is written to.</p>
+<dd><p>Optionally, specifies where to store the decrypted message.</p>
 </dd>
 <dt><kbd><span class="option">-i</span>, <span class="option">--input</span></kbd></dt>
-<dd><p>Specify source file, which content will be decrypted (must have GPG message block inside)</p>
+<dd><p>Optionally, specifies from where to read the encrypted GPG message.</p>
 </dd>
 <dt><kbd><span class="option">-u</span>, <span class="option">--update</span></kbd></dt>
-<dd><p>updates GPG keyring with keys from the repository and removes revoked keys</p>
+<dd><p>If present, local repository will be synchronized with the upstream before validating the keys.</p>
 </dd>
 </dl>
 </section>

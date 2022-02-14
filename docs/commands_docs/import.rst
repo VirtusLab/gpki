@@ -8,15 +8,14 @@ import
 
     gpki import [-i|--input <file1 ... fileN>]
 
-Imports all public keys from GPG public key block or file(s), so later on those keys are available to use as recipients.
-If input files are not specified, user is asked to paste the GPG public key block.
-If at least one key from block/file is not imported successfully, then all keys from given block/file are treated as corrupted, and not added to GPG keyring.
-Prints import summary report divided into three sections: Succeeded, Unchanged and Failed imports.
+Imports recipients from console or file(s) if any is specified. Expected format is GPG public key block.
+Every keys in the block or the file must be valid, otherwise the block/file is treated as corrupted and not imported.
+Prints import summary divided into three sections: Succeeded, Unchanged and Failed imports.
 
 
-Note: provided files will be found only if they are placed in current working directory. If there is need to add files from different location, then relative path to the file must be specified.
+Note: Unless absolute, input path is relative to the current working directory.
 
 **Options:**
 
--i, --input                            Specifies the file or files from which keys are going to be imported
+-i, --input                            Specifies the files from which keys should be imported
 

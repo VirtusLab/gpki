@@ -2,32 +2,32 @@
 
 Getting started
 ===============
-It's worth to mention, at this point Certificate Authority should already create git repository to keep users public keys.
-At first use, regardless of command used, user is asked to provide link to the git repository.
-Before encrypting messages, files and any other confidential stuff, there has to be created at least one *identity*
-which is used to sign gpg messages.
-Create *identity* with:
+The prerequisite is having a dedicated git repository with appropriate security settings set up (i.e. only trusted users should be allowed to push changes to master branch).
+
+When run for the first time, gpki will ask the user for the upstream repository URL.
+Every message is encrypted and signed by one of the locally created identities.
+
+To create one, use:
 
 .. code-block:: shell
 
     gpki identity <name> [--email <email>] [--description <description>]
 
-Apart from created gpg public/private key pair, new pull request to master branch has been opened. In order to receive
-messages from other users, your *identity* has to be approved by CA and merged to master branch.
+Other users will be able to communicate with this identity as soon as Certificate Authority approves it and they update their local repository. (see :ref:`identity`)
 
-To source all available recipients from repository, use:
+To synchronize with the upstream repository, use:
 
 .. code-block:: shell
 
     gpki update
 
-Encrypt message or file with:
+Encrypt message from file or terminal with:
 
 .. code-block:: shell
 
     gpki encrypt [--all/-a] [--input/-i <input_path>] [--output/-o <output_path>]
 
-Decrypt message with:
+Decrypt message from file or terminal with:
 
 .. code-block:: shell
 

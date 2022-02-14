@@ -70,15 +70,14 @@
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki import <span class="o">[</span>-i<span class="p">|</span>--input &lt;file1 ... fileN&gt;<span class="o">]</span>
 </pre></div>
 </div>
-<p>Imports all public keys from GPG public key block or file(s), so later on those keys are available to use as recipients.
-If input files are not specified, user is asked to paste the GPG public key block.
-If at least one key from block/file is not imported successfully, then all keys from given block/file are treated as corrupted, and not added to GPG keyring.
-Prints import summary report divided into three sections: Succeeded, Unchanged and Failed imports.</p>
-<p>Note: provided files will be found only if they are placed in current working directory. If there is need to add files from different location, then relative path to the file must be specified.</p>
+<p>Imports recipients from console or file(s) if any is specified. Expected format is GPG public key block.
+Every keys in the block or the file must be valid, otherwise the block/file is treated as corrupted and not imported.
+Prints import summary divided into three sections: Succeeded, Unchanged and Failed imports.</p>
+<p>Note: Unless absolute, input path is relative to the current working directory.</p>
 <p><strong>Options:</strong></p>
 <dl class="option-list">
 <dt><kbd><span class="option">-i</span>, <span class="option">--input</span></kbd></dt>
-<dd><p>Specifies the file or files from which keys are going to be imported</p>
+<dd><p>Specifies the files from which keys should be imported</p>
 </dd>
 </dl>
 </section>

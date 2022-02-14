@@ -8,8 +8,10 @@ review
 
     gpki review
 
-``review`` command is reserved for the Certificate Authority or someone empowered to make changes in master/main branch.
-At the beginning ``review`` command will merge all revoke requests into master.
-Later the command looks for unmerged new identities or import requests and lists them to the user.
-Certificate Authority can now decide which request to handle and make decision if requests should be merged to master/main branch or reject it.
-If requests gets rejected, then its branch is automatically removed from repository.
+Lists all pending changes to the repository and guides the user through accepting or rejecting any of them. Decision made will be pushed to the upstream repository. Only the trusted parties - Certificate Authorities - must be allowed to push the master branch.
+Pending changes can be:
+
+    a) generated identities
+    b) imported identities
+
+Identity revocations will be approved automatically.

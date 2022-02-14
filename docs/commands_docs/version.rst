@@ -8,4 +8,4 @@ version
 
     gpki --version
 
-Shows program version and exists.
+Shows the program version.

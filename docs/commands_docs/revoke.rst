@@ -8,5 +8,8 @@ revoke
 
     gpki revoke
 
-Lists all available signatories and lets the user choose which one to revoke. Once signatory is selected, pull request with revocation file is issued.
-After revocation of key, other users won't be able to decrypt messages signed with revoked key, which is useful when it is know the key was compromised.
+Revokes a locally created identity. Change will be reflected in the upstream repository once approved by the CA.
+
+Messages created by this identity **after** the revocation will be treated as invalid as soon as the revocation request is approved and receiver synchronizes his local repository`.
+
+Messages created **before** the revocation will still be treated as valid.

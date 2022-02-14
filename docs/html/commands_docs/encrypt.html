@@ -70,18 +70,18 @@
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki encrypt <span class="o">[</span>-o<span class="p">|</span>--output &lt;target_file&gt;<span class="o">]</span> <span class="o">[</span>-i<span class="p">|</span>--input &lt;source_file&gt;<span class="o">]</span> <span class="o">[</span>-a<span class="p">|</span>--all<span class="o">]</span>
 </pre></div>
 </div>
-<p>Encrypts message or file content into GPG message block or into output file.
+<p>Encrypts a file or console-pasted message writing resulting GPG message block into the console or a file.
 If input file is not specified, user is asked to write message in console.
 If output file is not provided, encrypted message block is printed out to the console.
 Message recipients are interactively selected by user or all of them are selected if <code class="docutils literal notranslate"><span class="pre">-a/--all</span></code> flag is set.</p>
-<p>Note: both input and output path are relative by default, but there is possibility to pass absolute path.</p>
+<p>Note: Unless absolute, input and output paths are relative to the current working directory.</p>
 <p><strong>Options:</strong></p>
 <dl class="option-list">
 <dt><kbd><span class="option">-o</span>, <span class="option">--output</span></kbd></dt>
-<dd><p>Specify target output file where encrypted message is written to.</p>
+<dd><p>Optionally, specifies where to store the encrypted message.</p>
 </dd>
 <dt><kbd><span class="option">-i</span>, <span class="option">--input</span></kbd></dt>
-<dd><p>Specify source file, which content will be encrypted.</p>
+<dd><p>Optionally, specifies from where to read the unencrypted message.</p>
 </dd>
 <dt><kbd><span class="option">-a</span>, <span class="option">--all</span></kbd></dt>
 <dd><p>Selects all available recipients.</p>

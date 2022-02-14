@@ -9,4 +9,5 @@ recipients
     gpki recipients
 
 Lists all available recipients.
-Note: use ``update`` command to source all recipients from the git repository.
+
+Hint: If expected recipient is not present, use ``update`` command to synchronize with the upstream repository.

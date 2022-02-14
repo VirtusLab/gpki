@@ -70,13 +70,13 @@
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki <span class="nb">export</span> &lt;key_name_1 ... key_name_N&gt; <span class="o">[</span>-o<span class="p">|</span>--output &lt;target_file_path&gt;<span class="o">]</span>
 </pre></div>
 </div>
-<p>Exports selected public keys into file or GPG public key block.
+<p>Exports selected public keys into a file or the console as a GPG public key block.
 The exported public key block is printed to console even if output file is specified.</p>
-<p>Note: output target files is created in current working directory by default. Provide relative or absolute path to target file if necessary (may require privilege to create path).</p>
+<p>Note: Unless absolute, output path is relative to the current working directory.</p>
 <p><strong>Options:</strong></p>
 <dl class="option-list">
 <dt><kbd><span class="option">-o</span>, <span class="option">--output</span></kbd></dt>
-<dd><p>Specifies the output target file where selected keys are exported to.</p>
+<dd><p>Optionally, specifies where to store the exported keys</p>
 </dd>
 </dl>
 </section>
