@@ -8,7 +8,8 @@ sync
 
     gpki sync
 
-Synchronizes the local state with remote repository. Adds new keys if any available and removes revoked keys (unless disabled by a flag).
+Adds new, approved identities to the local GPG keychain. Updates revoked identities and removes deleted ones.
+For more context, see `identity` and `revoke` commands.
 
 **Options:**
 
