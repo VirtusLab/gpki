@@ -92,9 +92,9 @@
   <section id="git-public-key-infrastructure-docs">
 <h1>Git Public Key Infrastructure docs<a class="headerlink" href="#git-public-key-infrastructure-docs" title="Permalink to this headline"></a></h1>
 <ol class="arabic simple">
-<li><p><a class="reference internal" href="#overall-description"><span class="std std-ref">Goal: Simple Public Key Infrastructure</span></a></p></li>
+<li><p><a class="reference internal" href="overall_description.html#overall-description"><span class="std std-ref">Goal: Simple Public Key Infrastructure</span></a></p></li>
 <li><p><a class="reference internal" href="#commands"><span class="std std-ref">Command Line Interface</span></a></p></li>
-<li><p><a class="reference internal" href="#installation-guide"><span class="std std-ref">Installation Guide</span></a></p></li>
+<li><p><a class="reference internal" href="installation_guide.html#installation-guide"><span class="std std-ref">Installation Guide</span></a></p></li>
 <li><p><a class="reference internal" href="#getting-started"><span class="std std-ref">Getting started</span></a></p></li>
 </ol>
 </section>
@@ -260,7 +260,7 @@ Prints import summary divided into three sections: Succeeded, Unchanged and Fail
 </pre></div>
 </div>
 <p>Lists all available recipients.</p>
-<p>Hint: If expected recipient is not present, use <code class="docutils literal notranslate"><span class="pre">update</span></code> command to synchronize with the upstream repository.</p>
+<p>Hint: If expected recipient is not present, use <code class="docutils literal notranslate"><span class="pre">sync</span></code> command to synchronize with the upstream repository.</p>
 </section>
 <section id="review">
 <span id="id8"></span><h2>review<a class="headerlink" href="#review" title="Permalink to this headline"></a></h2>
@@ -302,7 +302,8 @@ Pending changes can be:</p>
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki sync
 </pre></div>
 </div>
-<p>Synchronizes the local state with remote repository. Adds new keys if any available and removes revoked keys (unless disabled by a flag).</p>
+<p>Adds new, approved identities to the local GPG keychain. Updates revoked identities and removes deleted ones.
+For more context, see <cite>identity</cite> and <cite>revoke</cite> commands.</p>
 <p><strong>Options:</strong></p>
 <dl class="option-list">
 <dt><kbd><span class="option">--keep-rejected-keys</span></kbd></dt>
@@ -333,7 +334,7 @@ Pending changes can be:</p>
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>git clone git@github.com:VirtusLab/gpki.git
 <span class="nb">cd</span> gpki
 python3 -m pip install -r requirements.txt
-python3 setup.py install --user
+sudo python3 -m pip install .
 </pre></div>
 </div>
 <p>You are all set and ready to use <strong>GPKI</strong></p>
@@ -349,7 +350,7 @@ Every message is encrypted and signed by one of the locally created identities.<
 </div>
 <p>Other users will be able to communicate with this identity as soon as Certificate Authority approves it and they update their local repository. (see <a class="reference internal" href="#id4"><span class="std std-ref">identity</span></a>)</p>
 <p>To synchronize with the upstream repository, use:</p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki update
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki sync
 </pre></div>
 </div>
 <p>Encrypt message from file or terminal with:</p>
@@ -357,7 +358,7 @@ Every message is encrypted and signed by one of the locally created identities.<
 </pre></div>
 </div>
 <p>Decrypt message from file or terminal with:</p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki decrypt <span class="o">[</span>--input/-i &lt;input_path&gt;<span class="o">]</span> <span class="o">[</span>--output/-o &lt;output_path&gt;<span class="o">]</span> <span class="o">[</span>--update/-u<span class="o">]</span>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki decrypt <span class="o">[</span>--input/-i &lt;input_path&gt;<span class="o">]</span> <span class="o">[</span>--output/-o &lt;output_path&gt;<span class="o">]</span> <span class="o">[</span>--sync/-s<span class="o">]</span>
 </pre></div>
 </div>
 </section>

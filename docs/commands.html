@@ -202,7 +202,7 @@ Prints import summary divided into three sections: Succeeded, Unchanged and Fail
 </pre></div>
 </div>
 <p>Lists all available recipients.</p>
-<p>Hint: If expected recipient is not present, use <code class="docutils literal notranslate"><span class="pre">update</span></code> command to synchronize with the upstream repository.</p>
+<p>Hint: If expected recipient is not present, use <code class="docutils literal notranslate"><span class="pre">sync</span></code> command to synchronize with the upstream repository.</p>
 </section>
 <section id="review">
 <span id="id7"></span><h2>review<a class="headerlink" href="#review" title="Permalink to this headline"></a></h2>
@@ -244,7 +244,8 @@ Pending changes can be:</p>
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki sync
 </pre></div>
 </div>
-<p>Synchronizes the local state with remote repository. Adds new keys if any available and removes revoked keys (unless disabled by a flag).</p>
+<p>Adds new, approved identities to the local GPG keychain. Updates revoked identities and removes deleted ones.
+For more context, see <cite>identity</cite> and <cite>revoke</cite> commands.</p>
 <p><strong>Options:</strong></p>
 <dl class="option-list">
 <dt><kbd><span class="option">--keep-rejected-keys</span></kbd></dt>
