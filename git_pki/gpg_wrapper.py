@@ -11,7 +11,7 @@ from git_pki.custom_types import Key, SignatureVerification
 from git_pki.utils import is_string
 
 
-verbose = False
+verbose = True
 
 
 class GnuPGHandler:
@@ -162,8 +162,8 @@ class GnuPGHandler:
             return None  # in case there is no expiration date
 
     def get_private_key_by_id(self, keyid):
-        keys = self.gpg.list_keys(True, keys=keyid)
-        return self.parse_key(keys[0]) if keys else None
+        keys = self.private_keys_list(keyid)
+        return next(keys, None)
 
     def get_public_key_by_id(self, keyid):
         keys = self.public_keys_list(keyid)
