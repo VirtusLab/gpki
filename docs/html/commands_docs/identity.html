@@ -70,7 +70,7 @@
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki identity &lt;name&gt; <span class="o">[</span>--email<span class="o">]</span> <span class="o">[</span>--description<span class="o">]</span>
 </pre></div>
 </div>
-<p>Creates new identity &lt;name&gt;. Its associated key pair is added the into GPG keyring. Also, only public key is pushed  into upstream repository for Certificate Authority to review.
+<p>Creates new identity &lt;name&gt;. Its associated key pair is added the into GPG keyring. Also, only public key is pushed into upstream repository for Certificate Authority to review.
 Since identity is immediately added to keyring, it allows preparing and sharing messages before waiting for approval.
 If the name is already taken, identity can be replaced with a new key pair, optionally revoking the old one.</p>
 <p>If optional <code class="docutils literal notranslate"><span class="pre">--email</span></code> or <code class="docutils literal notranslate"><span class="pre">--description</span></code> is provided, then those fields will be available in recipient’s description.</p>

@@ -57,7 +57,7 @@
 <li><a class="reference internal" href="#review">review</a></li>
 <li><a class="reference internal" href="#revoke">revoke</a></li>
 <li><a class="reference internal" href="#signatories">signatories</a></li>
-<li><a class="reference internal" href="#update">update</a></li>
+<li><a class="reference internal" href="#sync">sync</a></li>
 <li><a class="reference internal" href="#version">version</a></li>
 </ul>
 </li>
@@ -149,19 +149,19 @@ memos)</p>
 <li><p><a class="reference internal" href="#review"><span class="std std-ref">review</span></a>           – Accept or reject new identities</p></li>
 <li><p><a class="reference internal" href="#revoke"><span class="std std-ref">revoke</span></a>           – Revoke specified identity</p></li>
 <li><p><a class="reference internal" href="#signatories"><span class="std std-ref">signatories</span></a>      – List available signatories</p></li>
-<li><p><a class="reference internal" href="#update"><span class="std std-ref">update</span></a>           – Synchronize local Public Key Infrastructure with source</p></li>
+<li><p><a class="reference internal" href="#sync"><span class="std std-ref">sync</span></a>             – Synchronize local Public Key Infrastructure with source</p></li>
 <li><p><a class="reference internal" href="#version"><span class="std std-ref">version</span></a>          – Show version</p></li>
 </ul>
 <section id="decrypt">
 <span id="id1"></span><h2>decrypt<a class="headerlink" href="#decrypt" title="Permalink to this headline"></a></h2>
 <p><strong>Usage:</strong></p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki decrypt <span class="o">[</span>-o<span class="p">|</span>--output &lt;target_file&gt;<span class="o">]</span> <span class="o">[</span>-i<span class="p">|</span>--input &lt;input_file&gt;<span class="o">]</span> <span class="o">[</span>-u<span class="p">|</span>--update<span class="o">]</span>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki decrypt <span class="o">[</span>-o<span class="p">|</span>--output &lt;target_file&gt;<span class="o">]</span> <span class="o">[</span>-i<span class="p">|</span>--input &lt;input_file&gt;<span class="o">]</span> <span class="o">[</span>-s<span class="p">|</span>--sync<span class="o">]</span>
 </pre></div>
 </div>
 <p>Decrypts the file or console-pasted message. Output is written either to the console or the specified file.
 If input file is not specified, user is asked to paste GPG message block into console.
 If output file is not provided, decrypted message is printed out to the console.
-It may happen that the message is signed with revoked key. In such a case, to make sure <code class="docutils literal notranslate"><span class="pre">gpki</span></code> operates on latest data from repository, it’s adviced to pass <code class="docutils literal notranslate"><span class="pre">-u/--update</span></code> flag.</p>
+It may happen that the message is signed with revoked key. In such a case, to make sure <code class="docutils literal notranslate"><span class="pre">gpki</span></code> operates on latest data from repository, it’s adviced to pass <code class="docutils literal notranslate"><span class="pre">-s/--sync</span></code> flag.</p>
 <p>Note: Unless absolute, input and output paths are relative to the current working directory.</p>
 <p><strong>Options:</strong></p>
 <dl class="option-list">
@@ -171,7 +171,7 @@ It may happen that the message is signed with revoked key. In such a case, to ma
 <dt><kbd><span class="option">-i</span>, <span class="option">--input</span></kbd></dt>
 <dd><p>Optionally, specifies from where to read the encrypted GPG message.</p>
 </dd>
-<dt><kbd><span class="option">-u</span>, <span class="option">--update</span></kbd></dt>
+<dt><kbd><span class="option">-s</span>, <span class="option">--sync</span></kbd></dt>
 <dd><p>If present, local repository will be synchronized with the upstream before validating the keys.</p>
 </dd>
 </dl>
@@ -222,7 +222,7 @@ The exported public key block is printed to console even if output file is speci
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki identity &lt;name&gt; <span class="o">[</span>--email<span class="o">]</span> <span class="o">[</span>--description<span class="o">]</span>
 </pre></div>
 </div>
-<p>Creates new identity &lt;name&gt;. Its associated key pair is added the into GPG keyring. Also, only public key is pushed  into upstream repository for Certificate Authority to review.
+<p>Creates new identity &lt;name&gt;. Its associated key pair is added the into GPG keyring. Also, only public key is pushed into upstream repository for Certificate Authority to review.
 Since identity is immediately added to keyring, it allows preparing and sharing messages before waiting for approval.
 If the name is already taken, identity can be replaced with a new key pair, optionally revoking the old one.</p>
 <p>If optional <code class="docutils literal notranslate"><span class="pre">--email</span></code> or <code class="docutils literal notranslate"><span class="pre">--description</span></code> is provided, then those fields will be available in recipient’s description.</p>
@@ -296,10 +296,10 @@ Pending changes can be:</p>
 </div>
 <p>Lists all available signatories - identities whose private keys are in the local keyring.</p>
 </section>
-<section id="update">
-<span id="id11"></span><h2>update<a class="headerlink" href="#update" title="Permalink to this headline"></a></h2>
+<section id="sync">
+<span id="id11"></span><h2>sync<a class="headerlink" href="#sync" title="Permalink to this headline"></a></h2>
 <p><strong>Usage:</strong></p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki update
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki sync
 </pre></div>
 </div>
 <p>Synchronizes the local state with remote repository. Adds new keys if any available and removes revoked keys (unless disabled by a flag).</p>

@@ -19,7 +19,7 @@ To synchronize with the upstream repository, use:
 
 .. code-block:: shell
 
-    gpki update
+    gpki sync
 
 Encrypt message from file or terminal with:
 
@@ -31,4 +31,4 @@ Decrypt message from file or terminal with:
 
 .. code-block:: shell
 
-    gpki decrypt [--input/-i <input_path>] [--output/-o <output_path>] [--update/-u]
+    gpki decrypt [--input/-i <input_path>] [--output/-o <output_path>] [--sync/-s]
