@@ -179,6 +179,6 @@ class GnuPGHandler:
             if key["fingerprint"].lower() == name:
                 return True
             for uid in key["uids"]:
-                if uid == name:
+                if uid.split()[0] == name:
                     return True
         return False
