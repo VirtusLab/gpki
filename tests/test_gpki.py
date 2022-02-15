@@ -373,7 +373,7 @@ class GitPKI_Tester(TestCase):
                 files.append(file)
 
         self.assertEqual(len(files), 2)
-        self.assertEqual(expected_file_list, files)
+        self.assertEqual(set(expected_file_list), set(files))
 
         # check if accepted branch was removed from remote
         remote_branches = shell(os.path.join(test_dir, 'vault', 'public'), 'git branch -r').strip().split(' ')
