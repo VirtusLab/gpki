@@ -175,10 +175,14 @@ class GnuPGHandler:
         if is_string(names):
             names = [names]
 
+        names = map(lambda name: name.lower(), names)
+
         for name in names:
             if key["fingerprint"].lower() == name:
                 return True
+            if key["keyid"].lower() == name:
+                return True
             for uid in key["uids"]:
-                if uid.split()[0] == name:
+                if uid.split()[0].lower() == name:
                     return True
         return False
