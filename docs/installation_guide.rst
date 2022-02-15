@@ -16,7 +16,7 @@ Install **GPKI** directly from repository with a few commands:
     git clone git@github.com:VirtusLab/gpki.git
     cd gpki
     python3 -m pip install -r requirements.txt
-    python3 -m pip install .
+    sudo python3 -m pip install .
 
 
 You are all set and ready to use **GPKI**
