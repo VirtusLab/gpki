@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>recipients &mdash; gpki 1.0.0 documentation</title>
+  <title>sync &mdash; gpki 1.0.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -37,7 +37,7 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <!-- Local TOC -->
               <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">recipients</a></li>
+<li><a class="reference internal" href="#">sync</a></li>
 </ul>
 </div>
         </div>
@@ -54,9 +54,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
-      <li>recipients</li>
+      <li>sync</li>
       <li class="wy-breadcrumbs-aside">
-            <a href="../_sources/commands_docs/recipients.rst.txt" rel="nofollow"> View page source</a>
+            <a href="../_sources/commands_docs/sync.rst.txt" rel="nofollow"> View page source</a>
       </li>
   </ul>
   <hr/>
@@ -64,14 +64,20 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="recipients">
-<span id="id1"></span><h1>recipients<a class="headerlink" href="#recipients" title="Permalink to this headline"></a></h1>
+  <section id="sync">
+<span id="id1"></span><h1>sync<a class="headerlink" href="#sync" title="Permalink to this headline"></a></h1>
 <p><strong>Usage:</strong></p>
-<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki recipients
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki sync
 </pre></div>
 </div>
-<p>Lists all available recipients.</p>
-<p>Hint: If expected recipient is not present, use <code class="docutils literal notranslate"><span class="pre">update</span></code> command to synchronize with the upstream repository.</p>
+<p>Adds new, approved identities to the local GPG keychain. Updates revoked identities and removes deleted ones.
+For more context, see <cite>identity</cite> and <cite>revoke</cite> commands.</p>
+<p><strong>Options:</strong></p>
+<dl class="option-list">
+<dt><kbd><span class="option">--keep-rejected-keys</span></kbd></dt>
+<dd><p>revoked public keys will not be removed from keyring</p>
+</dd>
+</dl>
 </section>
 
 
