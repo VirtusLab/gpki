@@ -11,7 +11,7 @@ from git_pki.custom_types import Key, SignatureVerification
 from git_pki.utils import is_string
 
 
-verbose = True
+verbose = False
 
 
 class GnuPGHandler:
