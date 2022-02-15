@@ -133,9 +133,9 @@ class GPKI:
 
         self.__gpg.encrypt(recipients, signatory, source, target, passphrase)
 
-    def decrypt(self, source, target, passphrase=None, update=False):
-        if update:
-            self.update()
+    def decrypt(self, source, target, passphrase=None, sync=False):
+        if sync:
+            self.sync()
         if file_exists(target):
             if input(f"Target file already exist, do you want to overwrite? [yN] ").lower() != 'y':
                 return
@@ -166,20 +166,20 @@ class GPKI:
         if passphrase is None:
             passphrase = getpass.getpass(f"Specify passphrase for {priv_key.name}: ")
 
-        self.verify_message(source, passphrase, update)
+        self.verify_message(source, passphrase, sync)
         self.__gpg.decrypt(source, target, passphrase)
 
-    def verify_message(self, message, passphrase, updated):
+    def verify_message(self, message, passphrase, synced):
         valid_key_list = []
         revoked_key_list = []
         signature_verification = self.__gpg.verify_signature(message, passphrase)
         for signature in signature_verification:
             key = self.__gpg.get_public_key_by_id(signature.signatory_fingerprint)
             if key is None:
-                if updated:
+                if synced:
                     raise Git_PKI_Exception("Could not verify message: signatory from outside organisation.")
                 else:
-                    self.update()
+                    self.sync()
                     key = self.__gpg.get_public_key_by_id(signature.signatory_fingerprint)
                     if key is None:
                         raise Git_PKI_Exception("Could not verify message: signatory from outside organisation.")
@@ -439,7 +439,7 @@ class GPKI:
         else:
             return datetime.strptime('2000-01-01 00:00:00+00:00', '%Y-%m-%d %H:%M:%S%z')
 
-    def update(self, keep_rejected_keys=False):
+    def sync(self, keep_rejected_keys=False):
         self.__git.fetch(prune=True)
         self.__git.merge(f'origin/{self.__git.master_branch}')
 
@@ -520,7 +520,7 @@ def create_gpki_parser():
     decrypt_parser.add_argument('--input', '-i', default=None)
     decrypt_parser.add_argument('--output', '-o', default=None)
     decrypt_parser.add_argument('--password', '-p', default=None)
-    decrypt_parser.add_argument('--update', '-u', action='store_true', default=False)
+    decrypt_parser.add_argument('--sync', '-s', action='store_true', default=False)
 
     new_identity_parser = subparsers.add_parser(
         'identity',
@@ -570,13 +570,13 @@ def create_gpki_parser():
         add_help=False,
         parents=[common_args_parser])
 
-    update_parser = subparsers.add_parser(
-        'update',
+    sync_parser = subparsers.add_parser(
+        'sync',
         argument_default=argparse.SUPPRESS,
         usage=argparse.SUPPRESS,
         add_help=False,
         parents=[common_args_parser])
-    update_parser.add_argument('--keep-rejected-keys', action='store_true', default=False)
+    sync_parser.add_argument('--keep-rejected-keys', action='store_true', default=False)
 
     subparsers.add_parser(
         'revoke',
@@ -595,7 +595,7 @@ def launch(parsed_cli):
     cmd = parsed_cli.command
 
     if cmd == 'decrypt':
-        gpki.decrypt(parsed_cli.input, parsed_cli.output, parsed_cli.password, parsed_cli.update)
+        gpki.decrypt(parsed_cli.input, parsed_cli.output, parsed_cli.password, parsed_cli.sync)
     elif cmd == 'encrypt':
         gpki.encrypt(parsed_cli.input, parsed_cli.output, parsed_cli.password, parsed_cli.all)
     elif cmd == 'identity':
@@ -612,8 +612,8 @@ def launch(parsed_cli):
         gpki.list_signatories()
     elif cmd == 'review':
         gpki.review_requests()
-    elif cmd == 'update':
-        gpki.update(parsed_cli.keep_rejected_keys)
+    elif cmd == 'sync':
+        gpki.sync(parsed_cli.keep_rejected_keys)
     elif cmd == 'revoke':
         gpki.revoke()
     else:

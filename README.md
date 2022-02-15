@@ -45,17 +45,18 @@ Install _GPKI_ directly from repository with a few commands:
 git clone git@github.com:VirtusLab/gpki.git
 cd gpki
 python3 -m pip install -r requirements.txt
-python3 setup.py install --user
+sudo python3 -m pip install .
 ```
 
 You are all set and ready to use _GPKI_ 
 
 ### Getting started
-It's worth to mention, at this point Certificate Authority should already create git repository to keep users public keys.
-When run for the first time, the user will be asked for a link to the git repository.
-Encryption requires at least one unexpired `identity` created on the machine in use. It will become the message signatory.
+The prerequisite is having a dedicated git repository with appropriate security settings set up (i.e. only trusted users should be allowed to push changes to master branch).
 
-Create identity with:
+When run for the first time, the user will be asked for a link to the git repository.
+Every message is encrypted and signed by one of the locally created identities. 
+
+To create one, use:
 
 `gpki identity <name> [--email <email>] [--description <description>]`
 

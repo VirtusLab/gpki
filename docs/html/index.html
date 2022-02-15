@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Git Public Key Infrastructure docs &mdash; gpki 1.0.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="#" class="icon icon-home"> gpki
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Git Public Key Infrastructure docs</a></li>
+<li><a class="reference internal" href="#goal-simple-public-key-infrastructure">Goal: Simple Public Key Infrastructure</a><ul>
+<li><a class="reference internal" href="#design">Design</a><ul>
+<li><a class="reference internal" href="#identity">Identity</a></li>
+<li><a class="reference internal" href="#where-is-the-certificate-authority">Where is the Certificate Authority?</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#use-case">Use Case</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#command-line-interface">Command Line Interface</a><ul>
+<li><a class="reference internal" href="#decrypt">decrypt</a></li>
+<li><a class="reference internal" href="#encrypt">encrypt</a></li>
+<li><a class="reference internal" href="#export">export</a></li>
+<li><a class="reference internal" href="#id4">identity</a></li>
+<li><a class="reference internal" href="#import">import</a></li>
+<li><a class="reference internal" href="#recipients">recipients</a></li>
+<li><a class="reference internal" href="#review">review</a></li>
+<li><a class="reference internal" href="#revoke">revoke</a></li>
+<li><a class="reference internal" href="#signatories">signatories</a></li>
+<li><a class="reference internal" href="#sync">sync</a></li>
+<li><a class="reference internal" href="#version">version</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#installation-guide">Installation Guide</a></li>
+<li><a class="reference internal" href="#getting-started">Getting started</a></li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">gpki</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home"></a> &raquo;</li>
+      <li>Git Public Key Infrastructure docs</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="git-public-key-infrastructure-docs">
+<h1>Git Public Key Infrastructure docs<a class="headerlink" href="#git-public-key-infrastructure-docs" title="Permalink to this headline"></a></h1>
+<ol class="arabic simple">
+<li><p><a class="reference internal" href="#overall-description"><span class="std std-ref">Goal: Simple Public Key Infrastructure</span></a></p></li>
+<li><p><a class="reference internal" href="#commands"><span class="std std-ref">Command Line Interface</span></a></p></li>
+<li><p><a class="reference internal" href="#installation-guide"><span class="std std-ref">Installation Guide</span></a></p></li>
+<li><p><a class="reference internal" href="#getting-started"><span class="std std-ref">Getting started</span></a></p></li>
+</ol>
+</section>
+<section id="goal-simple-public-key-infrastructure">
+<span id="overall-description"></span><h1>Goal: Simple Public Key Infrastructure<a class="headerlink" href="#goal-simple-public-key-infrastructure" title="Permalink to this headline"></a></h1>
+<p>By storing <a class="reference external" href="https://en.wikipedia.org/wiki/Public-key_cryptography">Public Keys</a>  in a version controlled storage (like
+git), we can achieve a high level of automation in managing the network of trusted identities.</p>
+<dl class="simple">
+<dt><strong>GPKI</strong> is being designed to automate and simplify the management of such a network. It is responsible for:</dt><dd><ul class="simple">
+<li><p>registering identities within the network</p></li>
+<li><p>encrypting and decrypting messages from the network members</p></li>
+</ul>
+</dd>
+</dl>
+<section id="design">
+<h2>Design<a class="headerlink" href="#design" title="Permalink to this headline"></a></h2>
+<p><strong>GPKI</strong> leverages both git and gpg to provide its functionality. The system consists of two parts: private vault and
+public repository. Vault is a GPG keychain storing every private and public key while the public repository is where
+only the public keys end up for other members to see.</p>
+<section id="identity">
+<h3>Identity<a class="headerlink" href="#identity" title="Permalink to this headline"></a></h3>
+<p>Every identity is a tuple of (name, email, description), where names should allow easy identification of its owner. It
+is possible for any user to own multiple identities, which might be beneficial when contacting external entities or if
+one needs to manually partition the network. Although in most cases a single identity should be enough.</p>
+</section>
+<section id="where-is-the-certificate-authority">
+<h3>Where is the Certificate Authority?<a class="headerlink" href="#where-is-the-certificate-authority" title="Permalink to this headline"></a></h3>
+<p>The network is as secure as the git repository. New identities can only be added by the users with correct permissions,
+hence there is no need for an explicit CA signing keys. For example, one could rely on merging the commits signed by a
+trusted user.</p>
+</section>
+</section>
+<section id="use-case">
+<h2>Use Case<a class="headerlink" href="#use-case" title="Permalink to this headline"></a></h2>
+<p>Sometimes, people need to share with another person a message, which they would like to keep confidential. With the help
+of <strong>GPKI</strong> it becomes as easy as installing it and maintaining a git repository (e.g. on github).</p>
+<p>Examples might be: household/family networks or confidential team-members communication (e.g. sharing confidential
+memos)</p>
+</section>
+</section>
+<section id="command-line-interface">
+<span id="commands"></span><h1>Command Line Interface<a class="headerlink" href="#command-line-interface" title="Permalink to this headline"></a></h1>
+<p>When <strong>GPKI</strong> is installed, it adds <code class="docutils literal notranslate"><span class="pre">gpki</span></code> command to command line.</p>
+<p><strong>GPKI</strong> commands:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#decrypt"><span class="std std-ref">decrypt</span></a>          – Decrypt message or file content</p></li>
+<li><p><a class="reference internal" href="#encrypt"><span class="std std-ref">encrypt</span></a>          – Encrypt message or file content</p></li>
+<li><p><a class="reference internal" href="#export"><span class="std std-ref">export</span></a>           – Exports selected keys into file or pasted GPG public key block</p></li>
+<li><p><a class="reference internal" href="#id4"><span class="std std-ref">identity</span></a>         – Create new identity</p></li>
+<li><p><a class="reference internal" href="#import"><span class="std std-ref">import</span></a>           – Import public keys from file or pasted GPG public key block</p></li>
+<li><p><a class="reference internal" href="#recipients"><span class="std std-ref">recipients</span></a>       – List all available recipients</p></li>
+<li><p><a class="reference internal" href="#review"><span class="std std-ref">review</span></a>           – Accept or reject new identities</p></li>
+<li><p><a class="reference internal" href="#revoke"><span class="std std-ref">revoke</span></a>           – Revoke specified identity</p></li>
+<li><p><a class="reference internal" href="#signatories"><span class="std std-ref">signatories</span></a>      – List available signatories</p></li>
+<li><p><a class="reference internal" href="#sync"><span class="std std-ref">sync</span></a>             – Synchronize local Public Key Infrastructure with source</p></li>
+<li><p><a class="reference internal" href="#version"><span class="std std-ref">version</span></a>          – Show version</p></li>
+</ul>
+<section id="decrypt">
+<span id="id1"></span><h2>decrypt<a class="headerlink" href="#decrypt" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki decrypt <span class="o">[</span>-o<span class="p">|</span>--output &lt;target_file&gt;<span class="o">]</span> <span class="o">[</span>-i<span class="p">|</span>--input &lt;input_file&gt;<span class="o">]</span> <span class="o">[</span>-s<span class="p">|</span>--sync<span class="o">]</span>
+</pre></div>
+</div>
+<p>Decrypts the file or console-pasted message. Output is written either to the console or the specified file.
+If input file is not specified, user is asked to paste GPG message block into console.
+If output file is not provided, decrypted message is printed out to the console.
+It may happen that the message is signed with revoked key. In such a case, to make sure <code class="docutils literal notranslate"><span class="pre">gpki</span></code> operates on latest data from repository, it’s adviced to pass <code class="docutils literal notranslate"><span class="pre">-s/--sync</span></code> flag.</p>
+<p>Note: Unless absolute, input and output paths are relative to the current working directory.</p>
+<p><strong>Options:</strong></p>
+<dl class="option-list">
+<dt><kbd><span class="option">-o</span>, <span class="option">--output</span></kbd></dt>
+<dd><p>Optionally, specifies where to store the decrypted message.</p>
+</dd>
+<dt><kbd><span class="option">-i</span>, <span class="option">--input</span></kbd></dt>
+<dd><p>Optionally, specifies from where to read the encrypted GPG message.</p>
+</dd>
+<dt><kbd><span class="option">-s</span>, <span class="option">--sync</span></kbd></dt>
+<dd><p>If present, local repository will be synchronized with the upstream before validating the keys.</p>
+</dd>
+</dl>
+</section>
+<section id="encrypt">
+<span id="id2"></span><h2>encrypt<a class="headerlink" href="#encrypt" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki encrypt <span class="o">[</span>-o<span class="p">|</span>--output &lt;target_file&gt;<span class="o">]</span> <span class="o">[</span>-i<span class="p">|</span>--input &lt;source_file&gt;<span class="o">]</span> <span class="o">[</span>-a<span class="p">|</span>--all<span class="o">]</span>
+</pre></div>
+</div>
+<p>Encrypts a file or console-pasted message writing resulting GPG message block into the console or a file.
+If input file is not specified, user is asked to write message in console.
+If output file is not provided, encrypted message block is printed out to the console.
+Message recipients are interactively selected by user or all of them are selected if <code class="docutils literal notranslate"><span class="pre">-a/--all</span></code> flag is set.</p>
+<p>Note: Unless absolute, input and output paths are relative to the current working directory.</p>
+<p><strong>Options:</strong></p>
+<dl class="option-list">
+<dt><kbd><span class="option">-o</span>, <span class="option">--output</span></kbd></dt>
+<dd><p>Optionally, specifies where to store the encrypted message.</p>
+</dd>
+<dt><kbd><span class="option">-i</span>, <span class="option">--input</span></kbd></dt>
+<dd><p>Optionally, specifies from where to read the unencrypted message.</p>
+</dd>
+<dt><kbd><span class="option">-a</span>, <span class="option">--all</span></kbd></dt>
+<dd><p>Selects all available recipients.</p>
+</dd>
+</dl>
+</section>
+<section id="export">
+<span id="id3"></span><h2>export<a class="headerlink" href="#export" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki <span class="nb">export</span> &lt;key_name_1 ... key_name_N&gt; <span class="o">[</span>-o<span class="p">|</span>--output &lt;target_file_path&gt;<span class="o">]</span>
+</pre></div>
+</div>
+<p>Exports selected public keys into a file or the console as a GPG public key block.
+The exported public key block is printed to console even if output file is specified.</p>
+<p>Note: Unless absolute, output path is relative to the current working directory.</p>
+<p><strong>Options:</strong></p>
+<dl class="option-list">
+<dt><kbd><span class="option">-o</span>, <span class="option">--output</span></kbd></dt>
+<dd><p>Optionally, specifies where to store the exported keys</p>
+</dd>
+</dl>
+</section>
+<section id="id4">
+<span id="id5"></span><h2>identity<a class="headerlink" href="#id4" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki identity &lt;name&gt; <span class="o">[</span>--email<span class="o">]</span> <span class="o">[</span>--description<span class="o">]</span>
+</pre></div>
+</div>
+<p>Creates new identity &lt;name&gt;. Its associated key pair is added the into GPG keyring. Also, only public key is pushed into upstream repository for Certificate Authority to review.
+Since identity is immediately added to keyring, it allows preparing and sharing messages before waiting for approval.
+If the name is already taken, identity can be replaced with a new key pair, optionally revoking the old one.</p>
+<p>If optional <code class="docutils literal notranslate"><span class="pre">--email</span></code> or <code class="docutils literal notranslate"><span class="pre">--description</span></code> is provided, then those fields will be available in recipient’s description.</p>
+<p><strong>Options:</strong></p>
+<dl class="option-list">
+<dt><kbd><span class="option">--email</span></kbd></dt>
+<dd><p>Specifies email address associated with given identity</p>
+</dd>
+<dt><kbd><span class="option">--description</span></kbd></dt>
+<dd><p>Short description of identity, e.g. its role</p>
+</dd>
+</dl>
+</section>
+<section id="import">
+<span id="id6"></span><h2>import<a class="headerlink" href="#import" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki import <span class="o">[</span>-i<span class="p">|</span>--input &lt;file1 ... fileN&gt;<span class="o">]</span>
+</pre></div>
+</div>
+<p>Imports recipients from console or file(s) if any is specified. Expected format is GPG public key block.
+Every keys in the block or the file must be valid, otherwise the block/file is treated as corrupted and not imported.
+Prints import summary divided into three sections: Succeeded, Unchanged and Failed imports.</p>
+<p>Note: Unless absolute, input path is relative to the current working directory.</p>
+<p><strong>Options:</strong></p>
+<dl class="option-list">
+<dt><kbd><span class="option">-i</span>, <span class="option">--input</span></kbd></dt>
+<dd><p>Specifies the files from which keys should be imported</p>
+</dd>
+</dl>
+</section>
+<section id="recipients">
+<span id="id7"></span><h2>recipients<a class="headerlink" href="#recipients" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki recipients
+</pre></div>
+</div>
+<p>Lists all available recipients.</p>
+<p>Hint: If expected recipient is not present, use <code class="docutils literal notranslate"><span class="pre">update</span></code> command to synchronize with the upstream repository.</p>
+</section>
+<section id="review">
+<span id="id8"></span><h2>review<a class="headerlink" href="#review" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki review
+</pre></div>
+</div>
+<p>Lists all pending changes to the repository and guides the user through accepting or rejecting any of them. Decision made will be pushed to the upstream repository. Only the trusted parties - Certificate Authorities - must be allowed to push the master branch.
+Pending changes can be:</p>
+<blockquote>
+<div><ol class="loweralpha simple">
+<li><p>generated identities</p></li>
+<li><p>imported identities</p></li>
+</ol>
+</div></blockquote>
+<p>Identity revocations will be approved automatically.</p>
+</section>
+<section id="revoke">
+<span id="id9"></span><h2>revoke<a class="headerlink" href="#revoke" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki revoke
+</pre></div>
+</div>
+<p>Revokes a locally created identity. Change will be reflected in the upstream repository once approved by the CA.</p>
+<p>Messages created by this identity <strong>after</strong> the revocation will be treated as invalid as soon as the revocation request is approved and receiver synchronizes his local repository`.</p>
+<p>Messages created <strong>before</strong> the revocation will still be treated as valid.</p>
+</section>
+<section id="signatories">
+<span id="id10"></span><h2>signatories<a class="headerlink" href="#signatories" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki signatories
+</pre></div>
+</div>
+<p>Lists all available signatories - identities whose private keys are in the local keyring.</p>
+</section>
+<section id="sync">
+<span id="id11"></span><h2>sync<a class="headerlink" href="#sync" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki sync
+</pre></div>
+</div>
+<p>Synchronizes the local state with remote repository. Adds new keys if any available and removes revoked keys (unless disabled by a flag).</p>
+<p><strong>Options:</strong></p>
+<dl class="option-list">
+<dt><kbd><span class="option">--keep-rejected-keys</span></kbd></dt>
+<dd><p>revoked public keys will not be removed from keyring</p>
+</dd>
+</dl>
+</section>
+<section id="version">
+<span id="id12"></span><h2>version<a class="headerlink" href="#version" title="Permalink to this headline"></a></h2>
+<p><strong>Usage:</strong></p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki --version
+</pre></div>
+</div>
+<p>Shows the program version.</p>
+</section>
+</section>
+<section id="installation-guide">
+<span id="id13"></span><h1>Installation Guide<a class="headerlink" href="#installation-guide" title="Permalink to this headline"></a></h1>
+<p><strong>GPKI</strong> is based on Python, Git and GnuPG, so make sure to have following installed:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>python &gt;= 3.6</p></li>
+<li><p>GnuPG &gt;= 2.1</p></li>
+<li><p>Git &gt;= 2.3</p></li>
+</ul>
+</div></blockquote>
+<p>Install <strong>GPKI</strong> directly from repository with a few commands:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>git clone git@github.com:VirtusLab/gpki.git
+<span class="nb">cd</span> gpki
+python3 -m pip install -r requirements.txt
+python3 setup.py install --user
+</pre></div>
+</div>
+<p>You are all set and ready to use <strong>GPKI</strong></p>
+</section>
+<section id="getting-started">
+<span id="id14"></span><h1>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this headline"></a></h1>
+<p>The prerequisite is having a dedicated git repository with appropriate security settings set up (i.e. only trusted users should be allowed to push changes to master branch).</p>
+<p>When run for the first time, gpki will ask the user for the upstream repository URL.
+Every message is encrypted and signed by one of the locally created identities.</p>
+<p>To create one, use:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki identity &lt;name&gt; <span class="o">[</span>--email &lt;email&gt;<span class="o">]</span> <span class="o">[</span>--description &lt;description&gt;<span class="o">]</span>
+</pre></div>
+</div>
+<p>Other users will be able to communicate with this identity as soon as Certificate Authority approves it and they update their local repository. (see <a class="reference internal" href="#id4"><span class="std std-ref">identity</span></a>)</p>
+<p>To synchronize with the upstream repository, use:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki update
+</pre></div>
+</div>
+<p>Encrypt message from file or terminal with:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki encrypt <span class="o">[</span>--all/-a<span class="o">]</span> <span class="o">[</span>--input/-i &lt;input_path&gt;<span class="o">]</span> <span class="o">[</span>--output/-o &lt;output_path&gt;<span class="o">]</span>
+</pre></div>
+</div>
+<p>Decrypt message from file or terminal with:</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>gpki decrypt <span class="o">[</span>--input/-i &lt;input_path&gt;<span class="o">]</span> <span class="o">[</span>--output/-o &lt;output_path&gt;<span class="o">]</span> <span class="o">[</span>--update/-u<span class="o">]</span>
+</pre></div>
+</div>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

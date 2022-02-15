@@ -473,7 +473,7 @@ class GitPKI_Tester(TestCase):
 
     @patch('getpass.getpass', mock_getpass)  # need to walkaround interactive ask for passphrase
     @patch('iterfzf.iterfzf', mock_iterfzf)  # in tests we got only one identity per test, so we can easily get the first one and move on
-    def test_update(self):
+    def test_sync(self):
         with patch('builtins.input', return_value=self.repo_sandbox.remote_path) as _:  # handle asking for repository while first use
             test_dir = GitPKI_Tester.get_temp_directory()
             gpki = GPKI(test_dir)
@@ -497,8 +497,8 @@ class GitPKI_Tester(TestCase):
         # remove all public keys from keyring
         gpki.remove_keys([key.fingerprint for key in initial_keys])
 
-        # load again keys with `update` command
-        gpki.update()
+        # load again keys with `sync` command
+        gpki.sync()
 
         final_keys = list(gpg_wrapped.public_keys_list())
 
@@ -594,7 +594,7 @@ class GitPKI_Tester(TestCase):
         private_keys_after_review = list(gpg_wrapped.private_keys_list())
         self.assertEqual(private_keys, private_keys_after_review)
 
-        gpki.update()
+        gpki.sync()
 
         # expect empty list
         final_private_keys = list(gpg_wrapped.private_keys_list())
@@ -625,7 +625,7 @@ class GitPKI_Tester(TestCase):
         public_keys_after_review = list(gpg_wrapped.public_keys_list())
         self.assertEqual(public_keys, public_keys_after_review)
 
-        gpki.update()
+        gpki.sync()
 
         # expect empty list
         final_private_keys = list(gpg_wrapped.private_keys_list())
