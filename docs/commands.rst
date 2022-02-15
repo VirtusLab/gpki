@@ -16,7 +16,7 @@ When **GPKI** is installed, it adds ``gpki`` command to command line.
 * :ref:`review`           -- Accept or reject new identities
 * :ref:`revoke`           -- Revoke specified identity
 * :ref:`signatories`      -- List available signatories
-* :ref:`update`           -- Synchronize local Public Key Infrastructure with source
+* :ref:`sync`             -- Synchronize local Public Key Infrastructure with source
 * :ref:`version`          -- Show version
 
 
@@ -29,5 +29,5 @@ When **GPKI** is installed, it adds ``gpki`` command to command line.
 .. include:: commands_docs/review.rst
 .. include:: commands_docs/revoke.rst
 .. include:: commands_docs/signatories.rst
-.. include:: commands_docs/update.rst
+.. include:: commands_docs/sync.rst
 .. include:: commands_docs/version.rst

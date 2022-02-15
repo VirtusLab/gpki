@@ -1,12 +1,12 @@
-.. _update:
+.. _sync:
 
-update
+sync
 ------
 **Usage:**
 
 .. code-block:: shell
 
-    gpki update
+    gpki sync
 
 Synchronizes the local state with remote repository. Adds new keys if any available and removes revoked keys (unless disabled by a flag).
 

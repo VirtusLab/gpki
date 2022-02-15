@@ -8,7 +8,7 @@ identity
 
     gpki identity <name> [--email] [--description]
 
-Creates new identity <name>. Its associated key pair is added the into GPG keyring. Also, only public key is pushed  into upstream repository for Certificate Authority to review.
+Creates new identity <name>. Its associated key pair is added the into GPG keyring. Also, only public key is pushed into upstream repository for Certificate Authority to review.
 Since identity is immediately added to keyring, it allows preparing and sharing messages before waiting for approval.
 If the name is already taken, identity can be replaced with a new key pair, optionally revoking the old one.
 
