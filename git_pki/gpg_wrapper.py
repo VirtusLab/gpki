@@ -47,7 +47,7 @@ class GnuPGHandler:
     def private_key_fingerprint(self, name):
         keys = self.private_keys_list(name)
         key = next(keys, None)
-        return None if key == None else key.fingerprint
+        return None if key is None else key.fingerprint
 
     def public_keys_list(self, names=None):
         keys = self.gpg.list_keys(False)
@@ -169,7 +169,7 @@ class GnuPGHandler:
         return next(keys, None)
 
     def __raw_key_matches(self, key, names) -> bool:
-        if names == None:
+        if not names:
             return True
         if is_string(names):
             names = [names]
