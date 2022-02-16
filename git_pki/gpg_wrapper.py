@@ -5,7 +5,6 @@ import sys
 
 from getpass import getpass
 from datetime import datetime
-from collections.abc import Iterable
 
 from git_pki.custom_types import Key, SignatureVerification
 from git_pki.utils import is_string
