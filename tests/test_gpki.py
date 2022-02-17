@@ -543,7 +543,7 @@ class GitPKI_Tester(TestCase):
         encrypted_message = self.exctract_gnupg_message(raw_output)
 
         for pkey in list(gpg_wrapped.public_keys_list())[:-1]:  # leave only one public key
-            gpg_wrapped.remove_public_key(pkey)
+            gpg_wrapped.remove_public_key(pkey.fingerprint)
 
         sys.stdin = StringIO(encrypted_message)
         with StringIO() as out:

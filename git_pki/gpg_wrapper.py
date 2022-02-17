@@ -68,11 +68,13 @@ class GnuPGHandler:
         keys = self.gpg.scan_keys(path)
         return keys[0]["fingerprint"] if keys else None
 
-    def remove_private_key(self, fingerprint, passphrase):
-        self.gpg.delete_keys(fingerprint, True, passphrase=passphrase)
+    def remove_private_key(self, key, passphrase):
+        id = as_id(key)
+        self.gpg.delete_keys(id, True, passphrase=passphrase)
 
-    def remove_public_key(self, fingerprint):
-        self.gpg.delete_keys(fingerprint, False)
+    def remove_public_key(self, key):
+        id = as_id(key)
+        self.gpg.delete_keys(id, False)
 
     def encrypt(self, recipient, signatory, source, target, passphrase):
         if source is None:
@@ -185,3 +187,10 @@ class GnuPGHandler:
                 if uid.split()[0].lower() == name:
                     return True
         return False
+
+def as_id(key):
+    if is_string(key):
+        return key
+    if isinstance(key, Key):
+        return key.fingerprint
+    raise Exception(f"Unknown type of key: {type(key)}")
