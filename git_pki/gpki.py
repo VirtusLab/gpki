@@ -320,9 +320,13 @@ class GPKI:
                 with open(file, "rb") as f:
                     self.__gpg.import_public_key(f.read())
 
-    def remove_keys(self, fingerprint_list):
-        for fingerprint in fingerprint_list:
-            self.__gpg.remove_public_key(fingerprint)
+    def remove_keys(self, ids):
+        for id in ids:
+            priv_key = self.__gpg.get_private_key_by_id(id)
+            if priv_key is not None:
+                passphrase = getpass.getpass(f"Specify passphrase to remove existing key of [{priv_key.name}]: ")
+                self.__gpg.remove_private_key(id, passphrase)
+            self.__gpg.remove_public_key(id)
 
     def review_requests(self):
         git = self.__git
@@ -459,28 +463,25 @@ class GPKI:
         for branch in branches_to_check:
             if not self.__git.is_merged_to(self.__git.master_branch, branch):
                 if not keep_rejected_keys:
-                    self.__revert_pr(branch)
+                    self.__revert_change(branch)
                     self.__git.remove_local_branch(branch)
 
-    def __revert_pr(self, branch):
+    def __revert_change(self, branch):
         request = self.__git.get_specified_request(Request(branch, self.__git.commit_title(branch)))
         if isinstance(request, RevokeIdentityRequest):
             return
         else:
             with self.__git.open_worktree(self.__review_dir, request.branch.name) as work_tree:
                 if isinstance(request, AddIdentityRequest):
-                    keys_to_remove = self.__gpg.scan(work_tree.path_to(os.path.join('identities', request.name, request.fingerprint)))
-                    passphrase = getpass.getpass(f"Specify passphrase to remove existing key of [{keys_to_remove[0].name}]: ")
-                    self.__gpg.remove_public_key(keys_to_remove[0].fingerprint)
-                    self.__gpg.remove_private_key(keys_to_remove[0].fingerprint, passphrase)
+                    keys = self.__gpg.scan(work_tree.path_to(os.path.join('identities', request.name, request.fingerprint)))
+                    fingerprints = [key.fingerprint for key in keys]
+                    self.remove_keys(fingerprints)
                 else:
-                    keys_to_remove = []
                     for root, _, files in os.walk(work_tree.path_to(os.path.join('identities'))):
                         for file in files:
                             if file in request.fingerprints:
-                                keys_to_remove.extend(self.__gpg.scan(os.path.join(root, file)))
-                    for key in keys_to_remove:
-                        self.__gpg.remove_public_key(key.fingerprint)
+                                keys = self.__gpg.scan(os.path.join(root, file))
+                                self.remove_keys(keys)
 
 
 def create_gpki_parser():
