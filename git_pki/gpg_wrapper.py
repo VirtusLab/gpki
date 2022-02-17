@@ -7,6 +7,7 @@ from getpass import getpass
 from datetime import datetime
 
 from git_pki.custom_types import Key, SignatureVerification
+from git_pki.utils import is_string
 
 
 verbose = False
@@ -38,25 +39,30 @@ class GnuPGHandler:
             print(f"Importing {armored}")
         return self.gpg.import_keys(armored).results
 
-    def private_keys_list(self):
+    def private_keys_list(self, names=None):
         keys = self.gpg.list_keys(True)
+        keys = filter(lambda key: self.__raw_key_matches(key, names), keys)
         return map(self.parse_key, keys)
 
     def private_key_fingerprint(self, name):
-        keys = self.gpg.list_keys(True, keys=name)
-        return keys[0]["fingerprint"].lower() if keys else None
+        keys = self.private_keys_list(name)
+        key = next(keys, None)
+        return None if key is None else key.fingerprint
 
     def public_keys_list(self, names=None):
-        keys = self.gpg.list_keys(False, keys=names)
+        keys = self.gpg.list_keys(False)
+        keys = filter(lambda key: self.__raw_key_matches(key, names), keys)
         return map(self.parse_key, keys)
 
     def public_key_name(self, fingerprint):
-        keys = self.gpg.list_keys(False, keys=fingerprint)
-        return keys[0]["uids"][0] if keys else None
+        keys = self.public_keys_list(fingerprint)
+        key = next(keys, None)
+        return None if key == None else key.name
 
     def public_key_fingerprint(self, name):
-        keys = self.gpg.list_keys(False, keys=name)
-        return keys[0]["fingerprint"].lower() if keys else None
+        keys = self.public_keys_list(name)
+        key = next(keys, None)
+        return None if key == None else key.fingerprint
 
     def file_key_fingerprint(self, path):
         keys = self.gpg.scan_keys(path)
@@ -108,9 +114,11 @@ class GnuPGHandler:
                 result = self.gpg.decrypt_file(source_file, output=None, passphrase=passphrase)
         else:
             result = self.gpg.decrypt("".join(source), output=None, passphrase=passphrase)
+
         if not result.ok:
             print(f"Could not verify: {result.status}.")
             return
+
         return self.parse_verification(result.sig_info)
 
     def get_recipients_from_file(self, source_file):
@@ -138,7 +146,7 @@ class GnuPGHandler:
         signatories = []
         for sig_hash in sig_info.keys():
             timestamp = sig_info[sig_hash]['timestamp']
-            signatory_fingerprint = sig_info[sig_hash]['fingerprint']
+            signatory_fingerprint = sig_info[sig_hash]['fingerprint'].lower()
             signatory_name = sig_info[sig_hash]['username']
             expiry = sig_info[sig_hash]['expiry']
             status = sig_info[sig_hash]['status']
@@ -153,9 +161,27 @@ class GnuPGHandler:
             return None  # in case there is no expiration date
 
     def get_private_key_by_id(self, keyid):
-        keys = self.gpg.list_keys(True, keys=keyid)
-        return self.parse_key(keys[0]) if keys else None
+        keys = self.private_keys_list(keyid)
+        return next(keys, None)
 
     def get_public_key_by_id(self, keyid):
-        keys = list(self.public_keys_list(keyid))
-        return keys[0] if keys else None
+        keys = self.public_keys_list(keyid)
+        return next(keys, None)
+
+    def __raw_key_matches(self, key, names) -> bool:
+        if not names:
+            return True
+        if is_string(names):
+            names = [names]
+
+        names = map(lambda name: name.lower(), names)
+
+        for name in names:
+            if key["fingerprint"].lower() == name:
+                return True
+            if key["keyid"].lower() == name:
+                return True
+            for uid in key["uids"]:
+                if uid.split()[0].lower() == name:
+                    return True
+        return False

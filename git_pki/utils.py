@@ -8,6 +8,8 @@ from time import time_ns
 
 from git_pki.custom_types import ShellCommand
 
+def is_string(value) -> bool:
+    return isinstance(value, str)
 
 def read_multiline_string(prompt=None):
     if prompt:
